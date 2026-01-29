@@ -1,12 +1,3 @@
-Lot ;Nom ;Quantité;Unité; Prix HT ; Total HT
-Isolation;Adhésif Orange 50m;1;U; €5,90 ; €5,90
-Bardage;Bardage Fibro Lame;36,64;m²; €50,00 ; €1 832,00
-Bardage;Vis bardage;367;U; €1,00 ; €367,00
-Placo;Plaque placo BA13 1,2x2,5m;13;U; €15,75 ; €204,75
-Placo;Prégylys 45;1;U; €34,20 ; €34,20
-Placo;Vis placo boite 500 TCB-C-3,5x10 ZN;1;U; €8,50 ; €8,50
-Placo;Disque de ponçage;5;U; €0,90 ; €4,50
-Placo;Bande à joint;74;ml; €0,17 ; €12,58
-Placo;Sac Enduit 25kg;2;U; €1,00 ; €2,00
-Peinture - Carrelage;Peinture Int. Pot Covatex 16L;1;U; €120,00 ; €120,00
--;-;-;-; - ; €2 591,43
+Lot;Désignation;Unité;Quantité;Prix
+Second œuvre;Plomberie;ml;50;15,00
+Second œuvre;Électricité;m2;120;20,50
