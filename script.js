@@ -26,7 +26,7 @@ const COLONNE_PRIX = 5; // 6e colonne, comme avant
 function parsePrix(val) {
     if (!val) return 0;
     return parseFloat(
-        val.toString().replace("€", "").replace(/\s/g, "").replace(",", ".")
+        val.toString().replace("€", "")
     ) || 0;
 }
 
@@ -164,3 +164,4 @@ select.addEventListener("change", () => {
         .then(text => afficherCSV(text, select.value))
         .catch(err => console.error("Erreur fetch CSV chantier :", err));
 });
+
