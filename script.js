@@ -120,6 +120,9 @@ function render() {
     let globalRestant = 0;
     let headersDone = false;
 
+    // ===== regrouper tous les lots de tous les chantiers =====
+    const groupesGlobaux = {};
+
     chantiersActifs.forEach(chantier => {
         const text = csvCache[chantier.fichier];
         if (!text) return;
@@ -141,7 +144,8 @@ function render() {
             headersDone = true;
         }
 
-        const groupes = {};
+        const etatCases =
+            JSON.parse(localStorage.getItem("etat-" + chantier.fichier)) || {};
 
         lignes.slice(1).forEach((ligne, index) => {
             const cells = ligne.split(",");
@@ -151,102 +155,102 @@ function render() {
             if (!lot || lot === "-" || lot.includes("___")) return;
             if (searchInput.value && !nom.includes(searchInput.value.toLowerCase())) return;
 
-            if (!groupes[lot]) groupes[lot] = [];
-            groupes[lot].push({ cells, index });
+            if (!groupesGlobaux[lot]) groupesGlobaux[lot] = [];
+            groupesGlobaux[lot].push({
+                cells,
+                index,
+                chantierNom: chantier.nom,
+                etatCases,
+                fichier: chantier.fichier
+            });
+        });
+    });
+
+    // ===== afficher chaque lot =====
+    Object.keys(groupesGlobaux).forEach(lot => {
+        let lotTotal = 0;
+        let lotRestant = 0;
+
+        groupesGlobaux[lot].forEach(item => {
+            const prix = parsePrix(item.cells[5]);
+            lotTotal += prix;
+            if (!item.etatCases[item.index]) lotRestant += prix;
         });
 
-        const etatCases =
-            JSON.parse(localStorage.getItem("etat-" + chantier.fichier)) || {};
+        globalTotal += lotTotal;
+        globalRestant += lotRestant;
 
-        Object.keys(groupes).forEach(lot => {
-            let lotTotal = 0;
-            let lotRestant = 0;
+        // ===== Ligne LOT =====
+        const trLot = document.createElement("tr");
+        trLot.style.background = "#f0f0f0";
+        trLot.style.cursor = "pointer";
 
-            groupes[lot].forEach(item => {
-                const prix = parsePrix(item.cells[5]);
-                lotTotal += prix;
-                if (!etatCases[item.index]) lotRestant += prix;
+        const tdLot = document.createElement("td");
+        tdLot.colSpan = 7; // headers + checkbox
+
+        tdLot.innerHTML = `<strong>${lot}</strong>
+            <span style="float:right">
+                Total : ${lotTotal.toFixed(2)} € |
+                Restant : ${lotRestant.toFixed(2)} €
+            </span>`;
+        trLot.appendChild(tdLot);
+        tbody.appendChild(trLot);
+
+        const lignesLot = [];
+
+        groupesGlobaux[lot].forEach(item => {
+            const tr = document.createElement("tr");
+            tr.style.display = "none";
+
+            item.cells.forEach((cell, idx) => {
+                const td = document.createElement("td");
+                td.textContent = idx === 0 ? "" : cell;
+
+                // Tooltip uniquement sur la colonne NOM
+                if (idx === 1) {
+                    td.style.cursor = "help";
+                    td.addEventListener("mouseenter", () => {
+                        tooltip.textContent = item.chantierNom;
+                        tooltip.style.display = "block";
+                    });
+                    td.addEventListener("mousemove", e => {
+                        tooltip.style.left = e.clientX + 12 + "px";
+                        tooltip.style.top = e.clientY + 12 + "px";
+                    });
+                    td.addEventListener("mouseleave", () => {
+                        tooltip.style.display = "none";
+                    });
+                }
+
+                tr.appendChild(td);
             });
 
-            globalTotal += lotTotal;
-            globalRestant += lotRestant;
+            const tdCheck = document.createElement("td");
+            const cb = document.createElement("input");
+            cb.type = "checkbox";
+            cb.checked = !!item.etatCases[item.index];
 
-            // ===== Ligne LOT =====
-            const trLot = document.createElement("tr");
-            trLot.style.background = "#f0f0f0";
-            trLot.style.cursor = "pointer";
+            if (cb.checked) tr.style.textDecoration = "line-through";
 
-            const tdLot = document.createElement("td");
-            tdLot.colSpan = headers.length + 1;
-            tdLot.innerHTML = `<strong>${lot}</strong>
-                <span style="float:right">
-                    Total : ${lotTotal.toFixed(2)} € |
-                    Restant : ${lotRestant.toFixed(2)} €
-                </span>`;
-
-            trLot.appendChild(tdLot);
-            tbody.appendChild(trLot);
-
-            const lignesLot = [];
-
-            groupes[lot].forEach(item => {
-                const tr = document.createElement("tr");
-                tr.style.display = "none";
-
-                item.cells.forEach((cell, idx) => {
-                    const td = document.createElement("td");
-                    td.textContent = idx === 0 ? "" : cell;
-
-                    // 👉 TOOLTIP UNIQUEMENT SUR LA COLONNE NOM
-                    if (idx === 1) {
-                        td.style.cursor = "help";
-
-                        td.addEventListener("mouseenter", () => {
-                            tooltip.textContent = chantier.nom;
-                            tooltip.style.display = "block";
-                        });
-
-                        td.addEventListener("mousemove", (e) => {
-                            tooltip.style.left = e.clientX + 12 + "px";
-                            tooltip.style.top = e.clientY + 12 + "px";
-                        });
-
-                        td.addEventListener("mouseleave", () => {
-                            tooltip.style.display = "none";
-                        });
-                    }
-
-                    tr.appendChild(td);
-                });
-
-                const tdCheck = document.createElement("td");
-                const cb = document.createElement("input");
-                cb.type = "checkbox";
-                cb.checked = !!etatCases[item.index];
-
-                if (cb.checked) tr.style.textDecoration = "line-through";
-
-                cb.addEventListener("change", () => {
-                    etatCases[item.index] = cb.checked;
-                    localStorage.setItem(
-                        "etat-" + chantier.fichier,
-                        JSON.stringify(etatCases)
-                    );
-                    render();
-                });
-
-                tdCheck.appendChild(cb);
-                tr.appendChild(tdCheck);
-
-                tbody.appendChild(tr);
-                lignesLot.push(tr);
+            cb.addEventListener("change", () => {
+                item.etatCases[item.index] = cb.checked;
+                localStorage.setItem(
+                    "etat-" + item.fichier,
+                    JSON.stringify(item.etatCases)
+                );
+                render();
             });
 
-            trLot.addEventListener("click", () => {
-                lignesLot.forEach(tr => {
-                    tr.style.display =
-                        tr.style.display === "none" ? "" : "none";
-                });
+            tdCheck.appendChild(cb);
+            tr.appendChild(tdCheck);
+
+            tbody.appendChild(tr);
+            lignesLot.push(tr);
+        });
+
+        trLot.addEventListener("click", () => {
+            lignesLot.forEach(tr => {
+                tr.style.display = tr.style.display === "none" ? "" : "none";
             });
         });
     });
