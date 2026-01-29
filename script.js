@@ -33,7 +33,7 @@ function afficherCSV(text) {
     if (lignes.length === 0) return;
 
     // En-têtes
-    const headers = lignes[0].split(";");
+    const headers = lignes[0].split(","); // <- séparateur virgule
     const trHead = document.createElement("tr");
     headers.forEach(h => {
         const th = document.createElement("th");
@@ -46,7 +46,7 @@ function afficherCSV(text) {
     // Lignes
     lignes.slice(1).forEach(ligne => {
         const tr = document.createElement("tr");
-        ligne.split(";").forEach(cell => {
+        ligne.split(",").forEach(cell => { // <- séparateur virgule
             const td = document.createElement("td");
             td.textContent = cell;
             td.style.padding = "5px";
@@ -62,7 +62,7 @@ fetch("data/index.csv")
     .then(text => {
         const lignes = text.trim().split("\n").slice(1);
         lignes.forEach(ligne => {
-            const [nom, fichier] = ligne.split(";");
+            const [nom, fichier] = ligne.split(",");
             const option = document.createElement("option");
             option.value = fichier;
             option.textContent = nom;
@@ -71,4 +71,11 @@ fetch("data/index.csv")
     })
     .catch(err => console.error("Erreur fetch index.csv :", err));
 
-// Quand un chantier es
+// Quand un chantier est sélectionné
+select.addEventListener("change", () => {
+    if (!select.value) return;
+    fetch("data/" + select.value)
+        .then(res => res.text())
+        .then(text => afficherCSV(text))
+        .catch(err => console.error("Erreur fetch CSV chantier :", err));
+});
