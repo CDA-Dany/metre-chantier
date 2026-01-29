@@ -68,12 +68,11 @@ function afficherCSV(text, chantierName) {
         trLot.appendChild(tdLot);
         tbody.appendChild(trLot);
 
-        // Lignes du lot
+        // Lignes du lot (cachées par défaut)
+        const lotLines = []; // pour stocker les tr du lot
         groupes[lot].forEach(item => {
             const tr = document.createElement("tr");
-            tr.classList.add("lotDetail");
-            tr.style.display = "none";
-
+            tr.style.display = "none"; // caché par défaut
             item.cells.forEach(cell => {
                 const td = document.createElement("td");
                 td.textContent = cell;
@@ -86,7 +85,6 @@ function afficherCSV(text, chantierName) {
             const checkbox = document.createElement("input");
             checkbox.type = "checkbox";
             checkbox.checked = etatCases[item.index] || false;
-
             if (checkbox.checked) tr.style.textDecoration = "line-through";
 
             checkbox.addEventListener("change", () => {
@@ -97,18 +95,20 @@ function afficherCSV(text, chantierName) {
 
             tdCheck.appendChild(checkbox);
             tr.appendChild(tdCheck);
+
             tbody.appendChild(tr);
+            lotLines.push(tr); // on stocke la ligne pour ce Lot
         });
 
-        // Toggle du Lot
+        // Toggle Lot : n'affecte que les lignes de ce lot
         trLot.addEventListener("click", () => {
-            groupes[lot].forEach((_, i) => {
-                const tr = tbody.querySelectorAll(".lotDetail")[i];
+            lotLines.forEach(tr => {
                 tr.style.display = tr.style.display === "none" ? "" : "none";
             });
         });
     });
 }
+
 
 // Charger index.csv
 fetch("data/index.csv")
@@ -133,3 +133,4 @@ select.addEventListener("change", () => {
         .then(text => afficherCSV(text, select.value))
         .catch(err => console.error("Erreur fetch CSV chantier :", err));
 });
+
