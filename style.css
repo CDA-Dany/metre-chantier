@@ -42,3 +42,14 @@ thead th {
 .lot-totaux span {
     margin-left: 15px;
 }
+
+/* Surbrillance des lignes enfants au survol */
+table tbody tr:hover {
+    background-color: #ffffcc; /* jaune clair */
+}
+
+/* Optionnel : surbrillance des lignes de lot aussi */
+table tbody tr:nth-child(odd):hover {
+    background-color: #fffae6; /* jaune très clair pour les lots */
+}
+
