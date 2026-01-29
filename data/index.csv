@@ -1,4 +1,5 @@
-nom;fichier
-Nom1;Chantier1.csv
-Nom2;Chantier2.csv
+nom,fichier
+Nom1,Chantier1.csv
+Nom2,Chantier2.csv
+
 
