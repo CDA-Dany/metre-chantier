@@ -1,31 +1,4 @@
-// Sélection de l'élément body pour ajouter les composants
-const body = document.body;
-
-// Création du menu déroulant
-const select = document.createElement("select");
-body.appendChild(select);
-
-// Option par défaut
-const optionDefaut = document.createElement("option");
-optionDefaut.value = "";
-optionDefaut.textContent = "-- Choisir un chantier --";
-select.appendChild(optionDefaut);
-
-// Création du tableau HTML
-const table = document.createElement("table");
-table.border = 1;
-table.style.borderCollapse = "collapse";
-table.style.marginTop = "20px";
-
-// Thead et Tbody
-const thead = document.createElement("thead");
-const tbody = document.createElement("tbody");
-table.appendChild(thead);
-table.appendChild(tbody);
-body.appendChild(table);
-
-// Fonction pour afficher le CSV du chantier
-function afficherCSV(text) {
+function afficherCSV(text, chantierName) {
     thead.innerHTML = "";
     tbody.innerHTML = "";
 
@@ -33,7 +6,7 @@ function afficherCSV(text) {
     if (lignes.length === 0) return;
 
     // En-têtes
-    const headers = lignes[0].split(","); // <- séparateur virgule
+    const headers = lignes[0].split(",");
     const trHead = document.createElement("tr");
     headers.forEach(h => {
         const th = document.createElement("th");
@@ -41,41 +14,81 @@ function afficherCSV(text) {
         th.style.padding = "5px";
         trHead.appendChild(th);
     });
+    // Colonne “Fait”
+    const thCheck = document.createElement("th");
+    thCheck.textContent = "Fait";
+    trHead.appendChild(thCheck);
     thead.appendChild(trHead);
 
-    // Lignes
-    lignes.slice(1).forEach(ligne => {
-        const tr = document.createElement("tr");
-        ligne.split(",").forEach(cell => { // <- séparateur virgule
-            const td = document.createElement("td");
-            td.textContent = cell;
-            td.style.padding = "5px";
-            tr.appendChild(td);
+    // Grouper les lignes par Lot (première colonne)
+    const groupes = {};
+    lignes.slice(1).forEach((ligne, index) => {
+        const cells = ligne.split(",");
+        const lot = cells[0].trim();
+        if (!groupes[lot]) groupes[lot] = [];
+        groupes[lot].push({cells, index});
+    });
+
+    // Récupérer l'état des cases depuis localStorage
+    let etatCases = JSON.parse(localStorage.getItem("etatCases-" + chantierName)) || {};
+
+    // Créer les lignes du tableau
+    Object.keys(groupes).forEach(lot => {
+        // Ligne “header” du lot
+        const trLot = document.createElement("tr");
+        trLot.style.backgroundColor = "#eee";
+        trLot.style.cursor = "pointer";
+
+        const tdLot = document.createElement("td");
+        tdLot.textContent = lot;
+        tdLot.colSpan = headers.length + 1;
+        tdLot.style.fontWeight = "bold";
+        trLot.appendChild(tdLot);
+        tbody.appendChild(trLot);
+
+        // Lignes du lot (cachées par défaut)
+        groupes[lot].forEach(item => {
+            const tr = document.createElement("tr");
+            tr.classList.add("lotDetail");
+            tr.style.display = "none"; // caché par défaut
+
+            item.cells.forEach(cell => {
+                const td = document.createElement("td");
+                td.textContent = cell;
+                td.style.padding = "5px";
+                tr.appendChild(td);
+            });
+
+            // Case à cocher
+            const tdCheck = document.createElement("td");
+            const checkbox = document.createElement("input");
+            checkbox.type = "checkbox";
+            checkbox.checked = etatCases[item.index] || false;
+
+            if (checkbox.checked) tr.style.textDecoration = "line-through";
+
+            checkbox.addEventListener("change", () => {
+                if (checkbox.checked) tr.style.textDecoration = "line-through";
+                else tr.style.textDecoration = "none";
+                etatCases[item.index] = checkbox.checked;
+                localStorage.setItem("etatCases-" + chantierName, JSON.stringify(etatCases));
+            });
+
+            tdCheck.appendChild(checkbox);
+            tr.appendChild(tdCheck);
+
+            tbody.appendChild(tr);
         });
-        tbody.appendChild(tr);
+
+        // Quand on clique sur le lot → toggle lignes
+        trLot.addEventListener("click", () => {
+            groupes[lot].forEach((_, i) => {
+                const trDetail = tbody.querySelectorAll(".lotDetail")[0]; // récupère la première de chaque lot
+                groupes[lot].forEach((__, j) => {
+                    const tr = tbody.querySelectorAll(".lotDetail")[i + j];
+                    tr.style.display = tr.style.display === "none" ? "" : "none";
+                });
+            });
+        });
     });
 }
-
-// Charger index.csv et remplir le menu
-fetch("data/index.csv")
-    .then(res => res.text())
-    .then(text => {
-        const lignes = text.trim().split("\n").slice(1);
-        lignes.forEach(ligne => {
-            const [nom, fichier] = ligne.split(",");
-            const option = document.createElement("option");
-            option.value = fichier;
-            option.textContent = nom;
-            select.appendChild(option);
-        });
-    })
-    .catch(err => console.error("Erreur fetch index.csv :", err));
-
-// Quand un chantier est sélectionné
-select.addEventListener("change", () => {
-    if (!select.value) return;
-    fetch("data/" + select.value)
-        .then(res => res.text())
-        .then(text => afficherCSV(text))
-        .catch(err => console.error("Erreur fetch CSV chantier :", err));
-});
