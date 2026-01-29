@@ -84,11 +84,28 @@ function afficherCSV(text, chantierName) {
         trLot.style.cursor = "pointer";
 
         const tdLot = document.createElement("td");
-        tdLot.textContent = `${lot} — Total : ${totalLot.toFixed(2)} € | Restant : ${restantLot.toFixed(2)} €`;
         tdLot.colSpan = headers.length + 1;
-        tdLot.style.fontWeight = "bold";
+        
+        const headerDiv = document.createElement("div");
+        headerDiv.className = "lot-header";
+        
+        const nomLot = document.createElement("span");
+        nomLot.textContent = lot;
+        
+        const totauxSpan = document.createElement("span");
+        totauxSpan.className = "lot-totaux";
+        totauxSpan.innerHTML = `
+            <span>Total : ${totalLot.toFixed(2)} €</span>
+            <span>Restant : ${totalRestant.toFixed(2)} €</span>
+        `;
+        
+        headerDiv.appendChild(nomLot);
+        headerDiv.appendChild(totauxSpan);
+        tdLot.appendChild(headerDiv);
+        
         trLot.appendChild(tdLot);
-        tbody.appendChild(trLot);
+        trLot.classList.add("lot-row");
+
 
         // Lignes enfants
         const lotLines = [];
@@ -164,4 +181,5 @@ select.addEventListener("change", () => {
         .then(text => afficherCSV(text, select.value))
         .catch(err => console.error("Erreur fetch CSV chantier :", err));
 });
+
 
