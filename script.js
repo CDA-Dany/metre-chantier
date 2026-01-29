@@ -1,244 +1,241 @@
-/**********************
- * OUTILS
- **********************/
-function parsePrix(val) {
-    if (!val) return 0;
-    return (
-        parseFloat(
-            val
-                .toString()
-                .replace("€", "")
-                .replace(/\s/g, "")
-                .replace(",", ".")
-        ) || 0
-    );
-}
+// =====================
+// Sélections HTML
+// =====================
+const searchInput = document.getElementById("searchInput");
+const chantierList = document.getElementById("chantierCheckboxes");
 
-/**********************
- * TOOLTIP
- **********************/
+const table = document.getElementById("mainTable");
+const thead = table.querySelector("thead");
+const tbody = table.querySelector("tbody");
+
+const totalGlobalSpan = document.getElementById("totalGlobalSpan");
+const restantGlobalSpan = document.getElementById("restantGlobalSpan");
+
+// =====================
+// Tooltip chantier
+// =====================
 const tooltip = document.createElement("div");
-Object.assign(tooltip.style, {
-    position: "fixed",
-    pointerEvents: "none",
-    background: "#222",
-    color: "#fff",
-    padding: "6px 10px",
-    borderRadius: "6px",
-    fontSize: "12px",
-    whiteSpace: "nowrap",
-    zIndex: 9999,
-    display: "none",
-    boxShadow: "0 4px 10px rgba(0,0,0,0.25)"
-});
+tooltip.style.position = "fixed";
+tooltip.style.pointerEvents = "none";
+tooltip.style.background = "#222";
+tooltip.style.color = "#fff";
+tooltip.style.padding = "6px 10px";
+tooltip.style.borderRadius = "6px";
+tooltip.style.fontSize = "12px";
+tooltip.style.whiteSpace = "nowrap";
+tooltip.style.zIndex = "9999";
+tooltip.style.display = "none";
+tooltip.style.boxShadow = "0 4px 10px rgba(0,0,0,0.25)";
 document.body.appendChild(tooltip);
 
-/**********************
- * INTERFACE
- **********************/
-const controls = document.getElementById("controls");
-const tableContainer = document.getElementById("table-container");
+// =====================
+// Données globales
+// =====================
+let chantiers = [];          // [{nom, fichier}]
+let csvCache = {};          // contenu CSV
+let chantiersActifs = new Set();
 
-// Recherche
-const searchInput = document.createElement("input");
-searchInput.placeholder = "🔍 Rechercher (colonne nom)…";
-searchInput.style.width = "300px";
-searchInput.style.margin = "10px auto";
-searchInput.style.display = "block";
-controls.appendChild(searchInput);
+// =====================
+// Utils
+// =====================
+function parsePrix(val) {
+    if (!val) return 0;
+    return parseFloat(
+        val
+            .toString()
+            .replace("€", "")
+            .replace(/\s/g, "")
+            .replace(",", ".")
+    ) || 0;
+}
 
-// Liste chantiers
-const chantierList = document.createElement("div");
-controls.appendChild(chantierList);
-
-// Tableau
-const table = document.createElement("table");
-table.style.width = "100%";
-table.style.borderCollapse = "collapse";
-table.style.marginTop = "15px";
-tableContainer.appendChild(table);
-
-const thead = document.createElement("thead");
-const tbody = document.createElement("tbody");
-table.appendChild(thead);
-table.appendChild(tbody);
-
-// Totaux globaux
-const totalsDiv = document.createElement("div");
-totalsDiv.style.marginTop = "15px";
-totalsDiv.style.fontWeight = "bold";
-tableContainer.appendChild(totalsDiv);
-
-/**********************
- * DONNÉES
- **********************/
-let chantiers = [];
-let csvData = {};
-let selectedChantiers = new Set();
-
-/**********************
- * CHARGER INDEX
- **********************/
+// =====================
+// Charger index.csv
+// =====================
 fetch("data/index.csv")
-    .then(r => r.text())
+    .then(res => res.text())
     .then(text => {
-        text.trim().split("\n").slice(1).forEach(l => {
-            const [nom, fichier] = l.split(",");
-            chantiers.push({ nom, fichier });
-
-            const label = document.createElement("label");
-            label.style.display = "block";
-            label.style.cursor = "pointer";
-
-            const cb = document.createElement("input");
-            cb.type = "checkbox";
-
-            cb.addEventListener("change", () => {
-                cb.checked
-                    ? selectedChantiers.add(fichier)
-                    : selectedChantiers.delete(fichier);
-                render();
-            });
-
-            label.appendChild(cb);
-            label.append(" " + nom);
-            chantierList.appendChild(label);
+        const lignes = text.trim().split("\n").slice(1);
+        lignes.forEach(ligne => {
+            const [nom, fichier] = ligne.split(",");
+            chantiers.push({ nom: nom.trim(), fichier: fichier.trim() });
         });
+        afficherCheckboxes();
     });
 
-/**********************
- * CHARGER CSV
- **********************/
-function loadCSV(fichier) {
-    if (csvData[fichier]) return Promise.resolve(csvData[fichier]);
+// =====================
+// Checkboxes chantiers
+// =====================
+function afficherCheckboxes() {
+    chantierList.innerHTML = "";
 
-    return fetch("data/" + fichier)
-        .then(r => r.text())
+    chantiers.forEach(c => {
+        const label = document.createElement("label");
+        label.style.display = "block";
+        label.style.cursor = "pointer";
+
+        const cb = document.createElement("input");
+        cb.type = "checkbox";
+        cb.value = c.fichier;
+
+        cb.addEventListener("change", () => {
+            if (cb.checked) {
+                chantiersActifs.add(c);
+                chargerCSV(c);
+            } else {
+                chantiersActifs.delete(c);
+            }
+            render();
+        });
+
+        label.appendChild(cb);
+        label.append(" " + c.nom);
+        chantierList.appendChild(label);
+    });
+}
+
+// =====================
+// Charger CSV chantier
+// =====================
+function chargerCSV(chantier) {
+    if (csvCache[chantier.fichier]) return;
+
+    fetch("data/" + chantier.fichier)
+        .then(res => res.text())
         .then(text => {
-            const rows = text.trim().split("\n").map(l => l.split(","));
-            csvData[fichier] = rows;
-            return rows;
+            csvCache[chantier.fichier] = text;
+            render();
         });
 }
 
-/**********************
- * RENDER
- **********************/
-async function render() {
+// =====================
+// RENDER GLOBAL
+// =====================
+function render() {
     thead.innerHTML = "";
     tbody.innerHTML = "";
-    totalsDiv.textContent = "";
 
-    if (selectedChantiers.size === 0) return;
+    if (chantiersActifs.size === 0) return;
 
-    let headersSet = false;
     let globalTotal = 0;
     let globalRestant = 0;
 
-    for (const chantier of chantiers) {
-        if (!selectedChantiers.has(chantier.fichier)) continue;
+    let headersDone = false;
 
-        const rows = await loadCSV(chantier.fichier);
-        const headers = rows[0];
-        const data = rows.slice(1);
+    chantiersActifs.forEach(chantier => {
+        const text = csvCache[chantier.fichier];
+        if (!text) return;
 
-        if (!headersSet) {
-            const tr = document.createElement("tr");
+        const lignes = text.trim().split("\n");
+        const headers = lignes[0].split(",");
+
+        if (!headersDone) {
+            const trHead = document.createElement("tr");
             headers.forEach(h => {
                 const th = document.createElement("th");
                 th.textContent = h;
-                th.style.border = "1px solid #ccc";
-                th.style.padding = "6px";
-                tr.appendChild(th);
+                trHead.appendChild(th);
             });
-            const thFait = document.createElement("th");
-            thFait.textContent = "Fait";
-            tr.appendChild(thFait);
-            thead.appendChild(tr);
-            headersSet = true;
+            const thCheck = document.createElement("th");
+            thCheck.textContent = "Fait";
+            trHead.appendChild(thCheck);
+            thead.appendChild(trHead);
+            headersDone = true;
         }
 
         const groupes = {};
-        data.forEach((row, idx) => {
-            const lot = row[0].trim();
+
+        lignes.slice(1).forEach((ligne, index) => {
+            const cells = ligne.split(",");
+            const lot = cells[0]?.trim();
+            const nom = cells[1]?.toLowerCase() || "";
+
+            if (!lot || lot === "-" || lot.includes("___")) return;
+
+            if (searchInput.value &&
+                !nom.includes(searchInput.value.toLowerCase())
+            ) return;
+
             if (!groupes[lot]) groupes[lot] = [];
-            groupes[lot].push({ row, idx, chantier });
+            groupes[lot].push({ cells, index });
         });
 
-        Object.keys(groupes).forEach(lot => {
-            if (lot === "-" || lot.includes("___")) return;
+        const etatCases =
+            JSON.parse(localStorage.getItem("etat-" + chantier.fichier)) || {};
 
-            let totalLot = 0;
-            let restantLot = 0;
-            const lignes = [];
+        Object.keys(groupes).forEach(lot => {
+            let lotTotal = 0;
+            let lotRestant = 0;
 
             groupes[lot].forEach(item => {
-                const prix = parsePrix(item.row[5]);
-                const key = item.chantier.fichier + "-" + item.idx;
-                const fait = JSON.parse(localStorage.getItem(key)) || false;
-
-                totalLot += prix;
-                if (!fait) restantLot += prix;
-
-                globalTotal += prix;
-                if (!fait) globalRestant += prix;
-
-                lignes.push({ ...item, prix, fait, key });
+                const prix = parsePrix(item.cells[5]);
+                lotTotal += prix;
+                if (!etatCases[item.index]) lotRestant += prix;
             });
 
-            // Ligne LOT
+            globalTotal += lotTotal;
+            globalRestant += lotRestant;
+
+            // ===== Ligne LOT =====
             const trLot = document.createElement("tr");
-            trLot.style.background = "#eee";
+            trLot.style.background = "#f0f0f0";
             trLot.style.cursor = "pointer";
 
             const tdLot = document.createElement("td");
             tdLot.colSpan = headers.length + 1;
-            tdLot.innerHTML = `
-                <span style="font-weight:bold">${lot}</span>
-                <span style="float:right">
-                    Total : ${totalLot.toFixed(2)} € |
-                    Restant : ${restantLot.toFixed(2)} €
-                </span>
-            `;
 
-            tdLot.addEventListener("mouseenter", e => {
+            const lotSpan = document.createElement("span");
+            lotSpan.textContent = lot;
+            lotSpan.style.fontWeight = "bold";
+
+            // Tooltip chantier
+            lotSpan.addEventListener("mouseenter", () => {
                 tooltip.textContent = chantier.nom;
                 tooltip.style.display = "block";
             });
-            tdLot.addEventListener("mousemove", e => {
+            lotSpan.addEventListener("mousemove", e => {
                 tooltip.style.left = e.clientX + 12 + "px";
                 tooltip.style.top = e.clientY + 12 + "px";
             });
-            tdLot.addEventListener("mouseleave", () => {
+            lotSpan.addEventListener("mouseleave", () => {
                 tooltip.style.display = "none";
             });
 
+            const totalSpan = document.createElement("span");
+            totalSpan.style.float = "right";
+            totalSpan.textContent =
+                `Total : ${lotTotal.toFixed(2)} € | Restant : ${lotRestant.toFixed(2)} €`;
+
+            tdLot.appendChild(lotSpan);
+            tdLot.appendChild(totalSpan);
             trLot.appendChild(tdLot);
             tbody.appendChild(trLot);
 
-            const enfants = [];
+            const lignesLot = [];
 
-            lignes.forEach(l => {
+            groupes[lot].forEach(item => {
                 const tr = document.createElement("tr");
                 tr.style.display = "none";
-                tr.addEventListener("mouseenter", () => tr.style.background = "#f5f5f5");
-                tr.addEventListener("mouseleave", () => tr.style.background = "");
 
-                l.row.forEach((cell, i) => {
+                item.cells.forEach((cell, idx) => {
                     const td = document.createElement("td");
-                    td.textContent = i === 0 ? "" : cell;
-                    td.style.border = "1px solid #ddd";
-                    td.style.padding = "5px";
+                    td.textContent = idx === 0 ? "" : cell;
                     tr.appendChild(td);
                 });
 
                 const tdCheck = document.createElement("td");
                 const cb = document.createElement("input");
                 cb.type = "checkbox";
-                cb.checked = l.fait;
+                cb.checked = !!etatCases[item.index];
+
+                if (cb.checked) tr.style.textDecoration = "line-through";
 
                 cb.addEventListener("change", () => {
-                    localStorage.setItem(l.key, cb.checked);
+                    etatCases[item.index] = cb.checked;
+                    localStorage.setItem(
+                        "etat-" + chantier.fichier,
+                        JSON.stringify(etatCases)
+                    );
                     render();
                 });
 
@@ -246,30 +243,25 @@ async function render() {
                 tr.appendChild(tdCheck);
 
                 tbody.appendChild(tr);
-                enfants.push(tr);
+                lignesLot.push(tr);
             });
 
             trLot.addEventListener("click", () => {
-                enfants.forEach(tr => {
-                    tr.style.display = tr.style.display === "none" ? "" : "none";
+                lignesLot.forEach(tr => {
+                    tr.style.display =
+                        tr.style.display === "none" ? "" : "none";
                 });
             });
         });
-    }
+    });
 
-    totalsDiv.textContent =
-        `TOTAL GLOBAL : ${globalTotal.toFixed(2)} € — ` +
-        `RESTANT : ${globalRestant.toFixed(2)} €`;
+    totalGlobalSpan.textContent =
+        "Total global : " + globalTotal.toFixed(2) + " €";
+    restantGlobalSpan.textContent =
+        "Restant global : " + globalRestant.toFixed(2) + " €";
 }
 
-/**********************
- * RECHERCHE
- **********************/
-searchInput.addEventListener("input", () => {
-    const val = searchInput.value.toLowerCase();
-    [...tbody.children].forEach(tr => {
-        if (tr.children.length < 2) return;
-        const text = tr.textContent.toLowerCase();
-        tr.style.display = text.includes(val) ? "" : "none";
-    });
-});
+// =====================
+// Recherche temps réel
+// =====================
+searchInput.addEventListener("input", render);
