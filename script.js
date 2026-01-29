@@ -2,9 +2,16 @@
 // UTILITAIRE PRIX
 // =====================
 function parsePrix(val) {
-    if (!val || val.trim() === "") return 0;
-    return parseFloat(val.replace("€", "")) || 0;
+    if (!val) return 0;
+
+    return parseFloat(
+        val
+            .toString()
+            .replace(/\s/g, "")   // enlève tous les espaces (1 200 → 1200)
+            .replace("€", "")
+    ) || 0;
 }
+
 
 // =====================
 // STRUCTURE PAGE
@@ -218,3 +225,4 @@ select.addEventListener("change", () => {
         .then(text => afficherCSV(text, select.value))
         .catch(err => console.error("Erreur CSV chantier :", err));
 });
+
