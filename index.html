@@ -1,20 +1,179 @@
-<!DOCTYPE html>
-<html lang="fr">
-<head>
-    <link rel="stylesheet" href="style.css">
-    <meta charset="UTF-8">
-    <title>Gestion Budget</title>
-</head>
-<body>
+<!-- index.html -->
+<input id="searchInput" type="text" placeholder="Recherche par nom..." style="display:block; margin:10px auto; width:300px; padding:5px; font-size:16px;">
 
-<h1>Métré</h1>
+<select id="chantierSelect" multiple size="5" style="display:block; margin:10px auto; width:320px;"></select>
 
-<p>Choisis un chantier :</p>
+<div id="resumeGlobal" style="width:95%; margin:15px auto; padding:10px 15px; border:1px solid #ccc; background:#f8f8f8; display:flex; justify-content:flex-end; gap:40px; font-weight:bold;">
+    <span id="totalGlobalSpan"></span>
+    <span id="restantGlobalSpan"></span>
+</div>
 
-<script src="script.js"></script>
+<table id="mainTable" style="border-collapse:collapse; margin:20px auto; width:95%; table-layout:fixed;">
+    <thead></thead>
+    <tbody></tbody>
+</table>
 
-</body>
-</html>
+<script>
+// ====== UTILITAIRE PRIX ======
+function parsePrix(val) {
+    if (!val) return 0;
+    return parseFloat(val.toString().replace(/\s/g, "").replace("€","")) || 0;
+}
 
+// ====== ELEMENTS ======
+const searchInput = document.getElementById("searchInput");
+const select = document.getElementById("chantierSelect");
+const table = document.getElementById("mainTable");
+const thead = table.querySelector("thead");
+const tbody = table.querySelector("tbody");
+const totalGlobalSpan = document.getElementById("totalGlobalSpan");
+const restantGlobalSpan = document.getElementById("restantGlobalSpan");
 
+// ====== DONNÉES ======
+let allChantiersData = {}; // { nomFichier: [ {cells,index} ] }
+let etatCasesGlobal = {}; // { 'fichier-index': true/false }
 
+// ====== CHARGEMENT INDEX ======
+fetch("data/index.csv")
+.then(res => res.text())
+.then(text => {
+    const lignes = text.trim().split("\n").slice(1);
+    lignes.forEach(ligne => {
+        const [nom, fichier] = ligne.split(",");
+        const option = document.createElement("option");
+        option.value = fichier;
+        option.textContent = nom;
+        select.appendChild(option);
+    });
+});
+
+// ====== CHARGEMENT CSV DÉFINITIF ======
+function loadSelectedChantiers(callback) {
+    const selectedFiles = Array.from(select.selectedOptions).map(o => o.value).filter(v=>v);
+    if(selectedFiles.length===0){
+        tbody.innerHTML="";thead.innerHTML=""; totalGlobalSpan.textContent=""; restantGlobalSpan.textContent="";
+        return;
+    }
+
+    Promise.all(selectedFiles.map(f=>{
+        if(allChantiersData[f]) return allChantiersData[f];
+        return fetch("data/"+f).then(r=>r.text()).then(text=>{
+            const lignes = text.trim().split("\n");
+            if(lignes.length<=1) return [];
+            const headers = lignes[0].split(",");
+            const data = lignes.slice(1).map((ligne,index)=>({cells:ligne.split(","), index, fichier:f}));
+            allChantiersData[f]=data;
+            return data;
+        });
+    })).then(results=>{
+        const merged = results.flat();
+        callback(merged);
+    });
+}
+
+// ====== AFFICHAGE TABLEAU ======
+function afficherTable(data){
+    tbody.innerHTML=""; thead.innerHTML="";
+    if(data.length===0) return;
+
+    const headers = ["Lot","Nom","Col3","Col4","Col5","Prix"]; // adapte si nécessaire
+    const trHead = document.createElement("tr");
+    headers.forEach(h=>{
+        const th = document.createElement("th");
+        th.textContent=h; th.style.padding="6px"; th.style.background="#333"; th.style.color="white";
+        trHead.appendChild(th);
+    });
+    const thCheck = document.createElement("th"); thCheck.textContent="Fait"; thCheck.style.background="#333"; thCheck.style.color="white"; trHead.appendChild(thCheck);
+    thead.appendChild(trHead);
+
+    // grouper par lot
+    const groupes = {};
+    data.forEach(item=>{
+        const lot = item.cells[0].trim();
+        if(!groupes[lot]) groupes[lot]=[];
+        groupes[lot].push(item);
+    });
+
+    let totalGlobal=0; let totalGlobalRestant=0;
+
+    Object.keys(groupes).forEach(lot=>{
+        if(lot.includes("___")||lot==="-"||groupes[lot].length===0) return;
+
+        let totalLot=0, totalRestant=0;
+        groupes[lot].forEach(it=>{
+            const prix=parsePrix(it.cells[5]);
+            totalLot+=prix;
+            const key=it.fichier+"-"+it.index;
+            if(!etatCasesGlobal[key]) totalRestant+=prix;
+        });
+
+        totalGlobal+=totalLot; totalGlobalRestant+=totalRestant;
+
+        // Ligne Lot
+        const trLot=document.createElement("tr"); trLot.style.background="#f2f2f2"; trLot.style.cursor="pointer";
+        const tdLot=document.createElement("td"); tdLot.colSpan=headers.length+1;
+        const headerDiv=document.createElement("div"); headerDiv.style.display="flex"; headerDiv.style.justifyContent="space-between"; headerDiv.style.alignItems="center"; headerDiv.style.fontWeight="bold";
+        const nomLot=document.createElement("span"); nomLot.textContent=lot;
+        const totaux=document.createElement("span"); totaux.style.fontWeight="normal"; totaux.style.fontSize="13px";
+        totaux.innerHTML=`<span style="margin-right:20px;">Total : <strong>${totalLot.toFixed(2)} €</strong></span><span class="restant">Restant : <strong>${totalRestant.toFixed(2)} €</strong></span>`;
+        headerDiv.appendChild(nomLot); headerDiv.appendChild(totaux); tdLot.appendChild(headerDiv); trLot.appendChild(tdLot); tbody.appendChild(trLot);
+
+        const lotLines=[];
+        groupes[lot].forEach(it=>{
+            const tr=document.createElement("tr"); tr.style.display="none";
+            it.cells.forEach((c,idx)=>{
+                const td=document.createElement("td"); td.textContent=idx===0?"":c; td.style.padding="6px"; tr.appendChild(td);
+            });
+            const tdCheck=document.createElement("td");
+            const checkbox=document.createElement("input"); checkbox.type="checkbox";
+            const key=it.fichier+"-"+it.index;
+            checkbox.checked=etatCasesGlobal[key]||false;
+            if(checkbox.checked) tr.style.textDecoration="line-through";
+
+            checkbox.addEventListener("change",()=>{
+                tr.style.textDecoration=checkbox.checked?"line-through":"none";
+                etatCasesGlobal[key]=checkbox.checked;
+
+                // recalcul totaux lot
+                let newRestantLot=0;
+                groupes[lot].forEach(i=>{
+                    const k=i.fichier+"-"+i.index;
+                    if(!etatCasesGlobal[k]) newRestantLot+=parsePrix(i.cells[5]);
+                });
+                totaux.querySelector(".restant").innerHTML=`Restant : <strong>${newRestantLot.toFixed(2)} €</strong>`;
+
+                // recalcul global
+                let newGlobalRestant=0;
+                Object.keys(groupes).forEach(l=>{
+                    groupes[l].forEach(i=>{
+                        const k=i.fichier+"-"+i.index;
+                        if(!etatCasesGlobal[k]) newGlobalRestant+=parsePrix(i.cells[5]);
+                    });
+                });
+                restantGlobalSpan.innerHTML=`Restant global : <strong>${newGlobalRestant.toFixed(2)} €</strong>`;
+            });
+
+            tdCheck.appendChild(checkbox); tr.appendChild(tdCheck); tbody.appendChild(tr); lotLines.push(tr);
+        });
+
+        trLot.addEventListener("click",()=>{lotLines.forEach(tr=>tr.style.display=tr.style.display==="none"?"":"none");});
+    });
+
+    totalGlobalSpan.innerHTML=`Total global : <strong>${totalGlobal.toFixed(2)} €</strong>`;
+    restantGlobalSpan.innerHTML=`Restant global : <strong>${totalGlobalRestant.toFixed(2)} €</strong>`;
+}
+
+// ====== FILTRAGE ======
+function filterAndDisplay(){
+    const query=searchInput.value.trim().toLowerCase();
+    loadSelectedChantiers(allData=>{
+        if(query===""){ afficherTable(allData); return; }
+        const filtered=allData.filter(d=>d.cells[1].toLowerCase().includes(query));
+        afficherTable(filtered);
+    });
+}
+
+// ====== EVENTS ======
+searchInput.addEventListener("input",filterAndDisplay);
+select.addEventListener("change",filterAndDisplay);
+</script>
