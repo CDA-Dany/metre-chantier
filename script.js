@@ -229,3 +229,20 @@ function filterAndDisplay(){
 // ====== EVENTS ======
 searchInput.addEventListener("input", filterAndDisplay);
 
+// Tooltip chantier
+const tooltip = document.createElement("div");
+tooltip.style.position = "fixed";
+tooltip.style.pointerEvents = "none";
+tooltip.style.background = "#222";
+tooltip.style.color = "#fff";
+tooltip.style.padding = "6px 10px";
+tooltip.style.borderRadius = "6px";
+tooltip.style.fontSize = "12px";
+tooltip.style.whiteSpace = "nowrap";
+tooltip.style.zIndex = "9999";
+tooltip.style.display = "none";
+tooltip.style.boxShadow = "0 4px 10px rgba(0,0,0,0.25)";
+document.body.appendChild(tooltip);
+
+
+
