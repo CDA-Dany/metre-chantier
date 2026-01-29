@@ -1,55 +1,11 @@
-body {
-    font-family: Arial, sans-serif;
-}
-
-table {
-    width: 95%;
-    margin: auto;
-    table-layout: fixed; /* empêche les sauts */
-}
-
-th, td {
-    padding: 6px 8px;
-    border: 1px solid #ccc;
-    font-size: 14px;
-}
-
-thead th {
-    background: #333;
-    color: white;
-    position: sticky;
-    top: 0;
-}
-
-.lot-row {
-    background: #f2f2f2;
-    font-weight: bold;
-}
-
-.lot-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-}
-
-.lot-totaux {
-    font-weight: normal;
-    font-size: 13px;
-    color: #333;
-    white-space: nowrap;
-}
-
-.lot-totaux span {
-    margin-left: 15px;
-}
-
-/* Surbrillance des lignes enfants au survol */
-table tbody tr:hover {
-    background-color: #ffffcc; /* jaune clair */
-}
-
-/* Optionnel : surbrillance des lignes de lot aussi */
-table tbody tr:nth-child(odd):hover {
-    background-color: #fffae6; /* jaune très clair pour les lots */
-}
-
+table { border-collapse: collapse; margin: 20px auto; width: 95%; table-layout: fixed; }
+th, td { padding: 6px; border: 1px solid #ccc; text-align: left; word-break: break-word; }
+thead th { background-color: #333; color: white; }
+tr.lot { background-color: #f2f2f2; cursor: pointer; font-weight: bold; }
+table tbody tr:hover { background-color: #ffffcc; }
+#resumeGlobal { width: 95%; margin: 15px auto; padding: 10px 15px; border: 1px solid #ccc; background: #f8f8f8; display: flex; justify-content: flex-end; gap: 40px; font-weight: bold; }
+td .totaux span { margin-right: 20px; }
+td .totaux .restant { color: red; }
+td .totaux .fait { color: green; }
+#searchInput { display: block; margin: 10px auto; width: 300px; padding: 5px; font-size: 16px; }
+#chantierSelect { display: block; margin: 10px auto; width: 320px; }
