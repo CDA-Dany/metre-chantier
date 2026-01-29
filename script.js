@@ -54,8 +54,11 @@ function afficherCSV(text, chantierName) {
     // État des cases
     let etatCases = JSON.parse(localStorage.getItem("etatCases-" + chantierName)) || {};
 
-    // Créer les lignes
+    // Créer les lignes pour chaque Lot
     Object.keys(groupes).forEach(lot => {
+        // Filtrer les Lots à ignorer
+        if (lot.includes("___") || lot === "-") return;
+
         // Ligne Lot (parent)
         const trLot = document.createElement("tr");
         trLot.style.backgroundColor = "#eee";
@@ -68,7 +71,7 @@ function afficherCSV(text, chantierName) {
         trLot.appendChild(tdLot);
         tbody.appendChild(trLot);
 
-        // Lignes détaillées (enfants)
+        // Lignes enfants
         const lotLines = [];
         groupes[lot].forEach(item => {
             const tr = document.createElement("tr");
@@ -76,8 +79,7 @@ function afficherCSV(text, chantierName) {
 
             item.cells.forEach((cell, idx) => {
                 const td = document.createElement("td");
-                // Premier cellule (Lot) vide pour hiérarchie
-                td.textContent = idx === 0 ? "" : cell;
+                td.textContent = idx === 0 ? "" : cell; // hiérarchie
                 td.style.padding = "5px";
                 tr.appendChild(td);
             });
@@ -113,6 +115,7 @@ function afficherCSV(text, chantierName) {
 
 
 
+
 // Charger index.csv
 fetch("data/index.csv")
     .then(res => res.text())
@@ -136,5 +139,6 @@ select.addEventListener("change", () => {
         .then(text => afficherCSV(text, select.value))
         .catch(err => console.error("Erreur fetch CSV chantier :", err));
 });
+
 
 
