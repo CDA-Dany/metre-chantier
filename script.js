@@ -72,7 +72,6 @@ function afficherCheckboxes() {
     chantiers.forEach(c => {
         const label = document.createElement("label");
         label.style.display = "block";
-        label.style.cursor = "pointer";
 
         const cb = document.createElement("input");
         cb.type = "checkbox";
@@ -119,7 +118,6 @@ function render() {
 
     let globalTotal = 0;
     let globalRestant = 0;
-
     let headersDone = false;
 
     chantiersActifs.forEach(chantier => {
@@ -151,10 +149,7 @@ function render() {
             const nom = cells[1]?.toLowerCase() || "";
 
             if (!lot || lot === "-" || lot.includes("___")) return;
-
-            if (searchInput.value &&
-                !nom.includes(searchInput.value.toLowerCase())
-            ) return;
+            if (searchInput.value && !nom.includes(searchInput.value.toLowerCase())) return;
 
             if (!groupes[lot]) groupes[lot] = [];
             groupes[lot].push({ cells, index });
@@ -183,31 +178,12 @@ function render() {
 
             const tdLot = document.createElement("td");
             tdLot.colSpan = headers.length + 1;
+            tdLot.innerHTML = `<strong>${lot}</strong>
+                <span style="float:right">
+                    Total : ${lotTotal.toFixed(2)} € |
+                    Restant : ${lotRestant.toFixed(2)} €
+                </span>`;
 
-            const lotSpan = document.createElement("span");
-            lotSpan.textContent = lot;
-            lotSpan.style.fontWeight = "bold";
-
-            // Tooltip chantier
-            lotSpan.addEventListener("mouseenter", () => {
-                tooltip.textContent = chantier.nom;
-                tooltip.style.display = "block";
-            });
-            lotSpan.addEventListener("mousemove", e => {
-                tooltip.style.left = e.clientX + 12 + "px";
-                tooltip.style.top = e.clientY + 12 + "px";
-            });
-            lotSpan.addEventListener("mouseleave", () => {
-                tooltip.style.display = "none";
-            });
-
-            const totalSpan = document.createElement("span");
-            totalSpan.style.float = "right";
-            totalSpan.textContent =
-                `Total : ${lotTotal.toFixed(2)} € | Restant : ${lotRestant.toFixed(2)} €`;
-
-            tdLot.appendChild(lotSpan);
-            tdLot.appendChild(totalSpan);
             trLot.appendChild(tdLot);
             tbody.appendChild(trLot);
 
@@ -220,6 +196,26 @@ function render() {
                 item.cells.forEach((cell, idx) => {
                     const td = document.createElement("td");
                     td.textContent = idx === 0 ? "" : cell;
+
+                    // 👉 TOOLTIP UNIQUEMENT SUR LA COLONNE NOM
+                    if (idx === 1) {
+                        td.style.cursor = "help";
+
+                        td.addEventListener("mouseenter", () => {
+                            tooltip.textContent = chantier.nom;
+                            tooltip.style.display = "block";
+                        });
+
+                        td.addEventListener("mousemove", (e) => {
+                            tooltip.style.left = e.clientX + 12 + "px";
+                            tooltip.style.top = e.clientY + 12 + "px";
+                        });
+
+                        td.addEventListener("mouseleave", () => {
+                            tooltip.style.display = "none";
+                        });
+                    }
+
                     tr.appendChild(td);
                 });
 
