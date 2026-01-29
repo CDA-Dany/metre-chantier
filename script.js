@@ -147,3 +147,28 @@ function afficherCSV(text, chantierName) {
         });
     });
 }
+
+
+// Charger index.csv
+fetch("data/index.csv")
+    .then(res => res.text())
+    .then(text => {
+        const lignes = text.trim().split("\n").slice(1);
+        lignes.forEach(ligne => {
+            const [nom, fichier] = ligne.split(",");
+            const option = document.createElement("option");
+            option.value = fichier;
+            option.textContent = nom;
+            select.appendChild(option);
+        });
+    })
+    .catch(err => console.error("Erreur fetch index.csv :", err));
+
+// Quand un chantier est sélectionné
+select.addEventListener("change", () => {
+    if (!select.value) return;
+    fetch("data/" + select.value)
+        .then(res => res.text())
+        .then(text => afficherCSV(text, select.value))
+        .catch(err => console.error("Erreur fetch CSV chantier :", err));
+});
