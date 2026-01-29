@@ -43,7 +43,7 @@ const restantGlobalSpan = document.createElement("span");
 
 resumeGlobal.appendChild(totalGlobalSpan);
 resumeGlobal.appendChild(restantGlobalSpan);
-body.appendChild(resumeGlobal);
+
 
 // ----- Tableau -----
 const table = document.createElement("table");
@@ -58,6 +58,7 @@ const tbody = document.createElement("tbody");
 table.appendChild(thead);
 table.appendChild(tbody);
 body.appendChild(table);
+body.appendChild(resumeGlobal);
 
 // =====================
 // AFFICHAGE CSV
@@ -262,3 +263,4 @@ select.addEventListener("change", () => {
         .then(res => res.text())
         .then(text => afficherCSV(text, select.value));
 });
+
