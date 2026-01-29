@@ -20,6 +20,16 @@ table.appendChild(thead);
 table.appendChild(tbody);
 body.appendChild(table);
 
+const COLONNE_PRIX = 5; // 6e colonne, comme avant
+
+// Fonction pour parser le prix (gère vide, €, espace, virgule)
+function parsePrix(val) {
+    if (!val) return 0;
+    return parseFloat(
+        val.toString().replace("€", "").replace(/\s/g, "").replace(",", ".")
+    ) || 0;
+}
+
 // Fonction pour afficher CSV regroupé par Lot
 function afficherCSV(text, chantierName) {
     thead.innerHTML = "";
@@ -48,7 +58,7 @@ function afficherCSV(text, chantierName) {
         const cells = ligne.split(",");
         const lot = cells[0].trim();
         if (!groupes[lot]) groupes[lot] = [];
-        groupes[lot].push({cells, index});
+        groupes[lot].push({ cells, index });
     });
 
     // État des cases
@@ -59,13 +69,22 @@ function afficherCSV(text, chantierName) {
         // Filtrer les Lots à ignorer
         if (lot.includes("___") || lot === "-") return;
 
+        // Calcul des totaux
+        let totalLot = 0;
+        let restantLot = 0;
+        groupes[lot].forEach(item => {
+            const prix = parsePrix(item.cells[COLONNE_PRIX]);
+            totalLot += prix;
+            if (!etatCases[item.index]) restantLot += prix;
+        });
+
         // Ligne Lot (parent)
         const trLot = document.createElement("tr");
         trLot.style.backgroundColor = "#eee";
         trLot.style.cursor = "pointer";
 
         const tdLot = document.createElement("td");
-        tdLot.textContent = lot;
+        tdLot.textContent = `${lot} — Total : ${totalLot.toFixed(2)} € | Restant : ${restantLot.toFixed(2)} €`;
         tdLot.colSpan = headers.length + 1;
         tdLot.style.fontWeight = "bold";
         trLot.appendChild(tdLot);
@@ -95,6 +114,15 @@ function afficherCSV(text, chantierName) {
                 tr.style.textDecoration = checkbox.checked ? "line-through" : "none";
                 etatCases[item.index] = checkbox.checked;
                 localStorage.setItem("etatCases-" + chantierName, JSON.stringify(etatCases));
+
+                // Recalcul restant pour ce lot
+                let nouveauRestant = 0;
+                groupes[lot].forEach(it => {
+                    const prix = parsePrix(it.cells[COLONNE_PRIX]);
+                    if (!etatCases[it.index]) nouveauRestant += prix;
+                });
+
+                tdLot.textContent = `${lot} — Total : ${totalLot.toFixed(2)} € | Restant : ${nouveauRestant.toFixed(2)} €`;
             });
 
             tdCheck.appendChild(checkbox);
@@ -113,9 +141,6 @@ function afficherCSV(text, chantierName) {
     });
 }
 
-
-
-
 // Charger index.csv
 fetch("data/index.csv")
     .then(res => res.text())
@@ -124,8 +149,8 @@ fetch("data/index.csv")
         lignes.forEach(ligne => {
             const [nom, fichier] = ligne.split(",");
             const option = document.createElement("option");
-            option.value = fichier;
-            option.textContent = nom;
+            option.value = fichier.trim();
+            option.textContent = nom.trim();
             select.appendChild(option);
         });
     })
@@ -139,7 +164,3 @@ select.addEventListener("change", () => {
         .then(text => afficherCSV(text, select.value))
         .catch(err => console.error("Erreur fetch CSV chantier :", err));
 });
-
-
-
-
