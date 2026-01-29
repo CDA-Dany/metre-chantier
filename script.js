@@ -1,3 +1,26 @@
+// Sélection du body
+const body = document.body;
+
+// Menu déroulant
+const select = document.createElement("select");
+body.appendChild(select);
+const optionDefaut = document.createElement("option");
+optionDefaut.value = "";
+optionDefaut.textContent = "-- Choisir un chantier --";
+select.appendChild(optionDefaut);
+
+// Tableau
+const table = document.createElement("table");
+table.border = 1;
+table.style.borderCollapse = "collapse";
+table.style.marginTop = "20px";
+const thead = document.createElement("thead");
+const tbody = document.createElement("tbody");
+table.appendChild(thead);
+table.appendChild(tbody);
+body.appendChild(table);
+
+// Fonction pour afficher CSV regroupé par Lot
 function afficherCSV(text, chantierName) {
     thead.innerHTML = "";
     tbody.innerHTML = "";
@@ -14,13 +37,12 @@ function afficherCSV(text, chantierName) {
         th.style.padding = "5px";
         trHead.appendChild(th);
     });
-    // Colonne “Fait”
     const thCheck = document.createElement("th");
     thCheck.textContent = "Fait";
     trHead.appendChild(thCheck);
     thead.appendChild(trHead);
 
-    // Grouper les lignes par Lot (première colonne)
+    // Grouper par Lot
     const groupes = {};
     lignes.slice(1).forEach((ligne, index) => {
         const cells = ligne.split(",");
@@ -29,12 +51,12 @@ function afficherCSV(text, chantierName) {
         groupes[lot].push({cells, index});
     });
 
-    // Récupérer l'état des cases depuis localStorage
+    // État des cases
     let etatCases = JSON.parse(localStorage.getItem("etatCases-" + chantierName)) || {};
 
-    // Créer les lignes du tableau
+    // Créer les lignes
     Object.keys(groupes).forEach(lot => {
-        // Ligne “header” du lot
+        // Ligne Lot
         const trLot = document.createElement("tr");
         trLot.style.backgroundColor = "#eee";
         trLot.style.cursor = "pointer";
@@ -46,11 +68,11 @@ function afficherCSV(text, chantierName) {
         trLot.appendChild(tdLot);
         tbody.appendChild(trLot);
 
-        // Lignes du lot (cachées par défaut)
+        // Lignes du lot
         groupes[lot].forEach(item => {
             const tr = document.createElement("tr");
             tr.classList.add("lotDetail");
-            tr.style.display = "none"; // caché par défaut
+            tr.style.display = "none";
 
             item.cells.forEach(cell => {
                 const td = document.createElement("td");
@@ -68,27 +90,46 @@ function afficherCSV(text, chantierName) {
             if (checkbox.checked) tr.style.textDecoration = "line-through";
 
             checkbox.addEventListener("change", () => {
-                if (checkbox.checked) tr.style.textDecoration = "line-through";
-                else tr.style.textDecoration = "none";
+                tr.style.textDecoration = checkbox.checked ? "line-through" : "none";
                 etatCases[item.index] = checkbox.checked;
                 localStorage.setItem("etatCases-" + chantierName, JSON.stringify(etatCases));
             });
 
             tdCheck.appendChild(checkbox);
             tr.appendChild(tdCheck);
-
             tbody.appendChild(tr);
         });
 
-        // Quand on clique sur le lot → toggle lignes
+        // Toggle du Lot
         trLot.addEventListener("click", () => {
             groupes[lot].forEach((_, i) => {
-                const trDetail = tbody.querySelectorAll(".lotDetail")[0]; // récupère la première de chaque lot
-                groupes[lot].forEach((__, j) => {
-                    const tr = tbody.querySelectorAll(".lotDetail")[i + j];
-                    tr.style.display = tr.style.display === "none" ? "" : "none";
-                });
+                const tr = tbody.querySelectorAll(".lotDetail")[i];
+                tr.style.display = tr.style.display === "none" ? "" : "none";
             });
         });
     });
 }
+
+// Charger index.csv
+fetch("data/index.csv")
+    .then(res => res.text())
+    .then(text => {
+        const lignes = text.trim().split("\n").slice(1);
+        lignes.forEach(ligne => {
+            const [nom, fichier] = ligne.split(",");
+            const option = document.createElement("option");
+            option.value = fichier;
+            option.textContent = nom;
+            select.appendChild(option);
+        });
+    })
+    .catch(err => console.error("Erreur fetch index.csv :", err));
+
+// Quand un chantier est sélectionné
+select.addEventListener("change", () => {
+    if (!select.value) return;
+    fetch("data/" + select.value)
+        .then(res => res.text())
+        .then(text => afficherCSV(text, select.value))
+        .catch(err => console.error("Erreur fetch CSV chantier :", err));
+});
