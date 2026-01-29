@@ -2,9 +2,22 @@ const selectChantier = document.getElementById("chantierSelect");
 const thead = document.querySelector("thead");
 const tbody = document.querySelector("tbody");
 
-const COLONNE_PRIX = 5; // 6e colonne (index 5)
+const COLONNE_PRIX = 5; // 6e colonne
 
-// Chargement du chantier
+// Nettoyage prix
+function parsePrix(val) {
+    if (!val) return 0;
+
+    return parseFloat(
+        val
+            .toString()
+            .replace("€", "")
+            .replace(/\s/g, "")
+            .replace(",", ".")
+    ) || 0;
+}
+
+// Sélection chantier
 selectChantier.addEventListener("change", () => {
     const chantier = selectChantier.value;
     if (!chantier) return;
@@ -34,7 +47,7 @@ function afficherCSV(text, chantierName) {
     trHead.appendChild(thCheck);
     thead.appendChild(trHead);
 
-    // Regroupement par Lot
+    // Regroupement par lot
     const groupes = {};
     lignes.slice(1).forEach((ligne, index) => {
         const cells = ligne.split(",");
@@ -49,24 +62,21 @@ function afficherCSV(text, chantierName) {
 
     Object.keys(groupes).forEach(lot => {
 
-        // Ignorer lots inutiles
+        // Ignorer séparateurs
         if (lot === "-" || lot.includes("___")) return;
 
-        // Calcul total et restant
         let totalLot = 0;
         let restantLot = 0;
 
         groupes[lot].forEach(item => {
-            const valeur = parseFloat(item.cells[COLONNE_PRIX]?.replace(",", "."));
-            if (isNaN(valeur)) return;
-
-            totalLot += valeur;
+            const prix = parsePrix(item.cells[COLONNE_PRIX]);
+            totalLot += prix;
             if (!etatCases[item.index]) {
-                restantLot += valeur;
+                restantLot += prix;
             }
         });
 
-        // Ligne LOT
+        // Ligne lot
         const trLot = document.createElement("tr");
         trLot.style.background = "#eee";
         trLot.style.cursor = "pointer";
@@ -80,9 +90,9 @@ function afficherCSV(text, chantierName) {
         trLot.appendChild(tdLot);
         tbody.appendChild(trLot);
 
-        // Lignes enfants
         const lignesLot = [];
 
+        // Lignes enfants
         groupes[lot].forEach(item => {
             const tr = document.createElement("tr");
             tr.style.display = "none";
@@ -98,9 +108,7 @@ function afficherCSV(text, chantierName) {
             checkbox.type = "checkbox";
             checkbox.checked = etatCases[item.index] || false;
 
-            if (checkbox.checked) {
-                tr.style.textDecoration = "line-through";
-            }
+            if (checkbox.checked) tr.style.textDecoration = "line-through";
 
             checkbox.addEventListener("change", () => {
                 etatCases[item.index] = checkbox.checked;
@@ -111,13 +119,12 @@ function afficherCSV(text, chantierName) {
 
                 tr.style.textDecoration = checkbox.checked ? "line-through" : "none";
 
-                // Recalcul du restant
+                // Recalcul restant
                 let nouveauRestant = 0;
                 groupes[lot].forEach(it => {
-                    const val = parseFloat(it.cells[COLONNE_PRIX]?.replace(",", "."));
-                    if (isNaN(val)) return;
+                    const p = parsePrix(it.cells[COLONNE_PRIX]);
                     if (!etatCases[it.index]) {
-                        nouveauRestant += val;
+                        nouveauRestant += p;
                     }
                 });
 
@@ -132,7 +139,7 @@ function afficherCSV(text, chantierName) {
             lignesLot.push(tr);
         });
 
-        // Toggle du lot
+        // Déroulage / repli
         trLot.addEventListener("click", () => {
             lignesLot.forEach(l =>
                 l.style.display = l.style.display === "none" ? "" : "none"
