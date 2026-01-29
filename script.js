@@ -3,22 +3,20 @@
 // =====================
 function parsePrix(val) {
     if (!val) return 0;
-
     return parseFloat(
         val
             .toString()
-            .replace(/\s/g, "")   // enlève tous les espaces (1 200 → 1200)
+            .replace(/\s/g, "")
             .replace("€", "")
     ) || 0;
 }
-
 
 // =====================
 // STRUCTURE PAGE
 // =====================
 const body = document.body;
 
-// Menu déroulant
+// ----- Menu déroulant -----
 const select = document.createElement("select");
 select.style.margin = "10px";
 body.appendChild(select);
@@ -28,7 +26,26 @@ optionDefaut.value = "";
 optionDefaut.textContent = "-- Choisir un chantier --";
 select.appendChild(optionDefaut);
 
-// Tableau
+// ----- Résumé global -----
+const resumeGlobal = document.createElement("div");
+resumeGlobal.style.width = "95%";
+resumeGlobal.style.margin = "15px auto";
+resumeGlobal.style.padding = "10px 15px";
+resumeGlobal.style.border = "1px solid #ccc";
+resumeGlobal.style.background = "#f8f8f8";
+resumeGlobal.style.display = "flex";
+resumeGlobal.style.justifyContent = "flex-end";
+resumeGlobal.style.gap = "40px";
+resumeGlobal.style.fontWeight = "bold";
+
+const totalGlobalSpan = document.createElement("span");
+const restantGlobalSpan = document.createElement("span");
+
+resumeGlobal.appendChild(totalGlobalSpan);
+resumeGlobal.appendChild(restantGlobalSpan);
+body.appendChild(resumeGlobal);
+
+// ----- Tableau -----
 const table = document.createElement("table");
 table.style.borderCollapse = "collapse";
 table.style.margin = "20px auto";
@@ -49,12 +66,15 @@ function afficherCSV(text, chantierName) {
     thead.innerHTML = "";
     tbody.innerHTML = "";
 
+    let totalGlobal = 0;
+    let totalGlobalRestant = 0;
+
     const lignes = text.trim().split("\n");
     if (lignes.length <= 1) return;
 
     const headers = lignes[0].split(",");
 
-    // ---------- EN-TÊTES ----------
+    // ----- EN-TÊTES -----
     const trHead = document.createElement("tr");
     headers.forEach(h => {
         const th = document.createElement("th");
@@ -73,7 +93,7 @@ function afficherCSV(text, chantierName) {
 
     thead.appendChild(trHead);
 
-    // ---------- GROUPEMENT PAR LOT ----------
+    // ----- GROUPEMENT PAR LOT -----
     const groupes = {};
     lignes.slice(1).forEach((ligne, index) => {
         const cells = ligne.split(",");
@@ -82,12 +102,11 @@ function afficherCSV(text, chantierName) {
         groupes[lot].push({ cells, index });
     });
 
-    // ---------- ÉTAT DES CASES ----------
     let etatCases = JSON.parse(
         localStorage.getItem("etatCases-" + chantierName)
     ) || {};
 
-    // ---------- AFFICHAGE DES LOTS ----------
+    // ----- LOTS -----
     Object.keys(groupes).forEach(lot => {
         if (lot.includes("___") || lot === "-") return;
 
@@ -102,7 +121,10 @@ function afficherCSV(text, chantierName) {
             }
         });
 
-        // ----- LIGNE LOT -----
+        totalGlobal += totalLot;
+        totalGlobalRestant += totalRestant;
+
+        // ---- Ligne LOT ----
         const trLot = document.createElement("tr");
         trLot.style.background = "#f2f2f2";
         trLot.style.cursor = "pointer";
@@ -137,7 +159,7 @@ function afficherCSV(text, chantierName) {
         trLot.appendChild(tdLot);
         tbody.appendChild(trLot);
 
-        // ----- LIGNES ENFANTS -----
+        // ---- Lignes enfants ----
         const lotLines = [];
 
         groupes[lot].forEach(item => {
@@ -169,32 +191,50 @@ function afficherCSV(text, chantierName) {
                     JSON.stringify(etatCases)
                 );
 
-                // 🔄 recalcul du restant
-                let newRestant = 0;
+                // 🔄 recalcul restant LOT
+                let newRestantLot = 0;
                 groupes[lot].forEach(it => {
                     if (!etatCases[it.index]) {
-                        newRestant += parsePrix(it.cells[5]);
+                        newRestantLot += parsePrix(it.cells[5]);
                     }
                 });
 
                 totaux.querySelector(".restant").innerHTML =
-                    `Restant : <strong>${newRestant.toFixed(2)} €</strong>`;
+                    `Restant : <strong>${newRestantLot.toFixed(2)} €</strong>`;
+
+                // 🔄 recalcul restant GLOBAL
+                let newGlobalRestant = 0;
+                Object.keys(groupes).forEach(l => {
+                    groupes[l].forEach(it => {
+                        if (!etatCases[it.index]) {
+                            newGlobalRestant += parsePrix(it.cells[5]);
+                        }
+                    });
+                });
+
+                restantGlobalSpan.innerHTML =
+                    `Restant global : <strong>${newGlobalRestant.toFixed(2)} €</strong>`;
             });
 
             tdCheck.appendChild(checkbox);
             tr.appendChild(tdCheck);
-
             tbody.appendChild(tr);
             lotLines.push(tr);
         });
 
-        // ----- DÉROULER / REPLIER -----
         trLot.addEventListener("click", () => {
-            lotLines.forEach(tr => {
-                tr.style.display = tr.style.display === "none" ? "" : "none";
-            });
+            lotLines.forEach(tr =>
+                tr.style.display = tr.style.display === "none" ? "" : "none"
+            );
         });
     });
+
+    // ----- Affichage global -----
+    totalGlobalSpan.innerHTML =
+        `Total global : <strong>${totalGlobal.toFixed(2)} €</strong>`;
+
+    restantGlobalSpan.innerHTML =
+        `Restant global : <strong>${totalGlobalRestant.toFixed(2)} €</strong>`;
 }
 
 // =====================
@@ -211,18 +251,14 @@ fetch("data/index.csv")
             option.textContent = nom;
             select.appendChild(option);
         });
-    })
-    .catch(err => console.error("Erreur index.csv :", err));
+    });
 
 // =====================
 // CHANGEMENT CHANTIER
 // =====================
 select.addEventListener("change", () => {
     if (!select.value) return;
-
     fetch("data/" + select.value)
         .then(res => res.text())
-        .then(text => afficherCSV(text, select.value))
-        .catch(err => console.error("Erreur CSV chantier :", err));
+        .then(text => afficherCSV(text, select.value));
 });
-
