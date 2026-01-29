@@ -30,20 +30,25 @@ fetch("data/index.csv")
     lignes.forEach(ligne => {
         const [nom, fichier] = ligne.split(",");
 
-        const label = document.createElement("label");
-        label.style.display = "block";
-        label.style.cursor = "pointer";
-
+        const wrapper = document.createElement("div");
+        wrapper.style.display = "flex";
+        wrapper.style.alignItems = "center";
+        wrapper.style.gap = "6px";
+        
         const checkbox = document.createElement("input");
         checkbox.type = "checkbox";
         checkbox.value = fichier;
-        checkbox.style.marginRight = "6px";
-
+        
         checkbox.addEventListener("change", filterAndDisplay);
+        
+        const text = document.createElement("span");
+        text.textContent = nom;
+        text.style.cursor = "default"; // texte non cliquable
+        
+        wrapper.appendChild(checkbox);
+        wrapper.appendChild(text);
+        checkboxContainer.appendChild(wrapper);
 
-        label.appendChild(checkbox);
-        label.appendChild(document.createTextNode(nom));
-        checkboxContainer.appendChild(label);
     });
 });
 
@@ -223,3 +228,4 @@ function filterAndDisplay(){
 
 // ====== EVENTS ======
 searchInput.addEventListener("input", filterAndDisplay);
+
