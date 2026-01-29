@@ -56,7 +56,7 @@ function afficherCSV(text, chantierName) {
 
     // Créer les lignes
     Object.keys(groupes).forEach(lot => {
-        // Ligne Lot
+        // Ligne Lot (parent)
         const trLot = document.createElement("tr");
         trLot.style.backgroundColor = "#eee";
         trLot.style.cursor = "pointer";
@@ -68,14 +68,16 @@ function afficherCSV(text, chantierName) {
         trLot.appendChild(tdLot);
         tbody.appendChild(trLot);
 
-        // Lignes du lot (cachées par défaut)
-        const lotLines = []; // pour stocker les tr du lot
+        // Lignes détaillées (enfants)
+        const lotLines = [];
         groupes[lot].forEach(item => {
             const tr = document.createElement("tr");
             tr.style.display = "none"; // caché par défaut
-            item.cells.forEach(cell => {
+
+            item.cells.forEach((cell, idx) => {
                 const td = document.createElement("td");
-                td.textContent = cell;
+                // Premier cellule (Lot) vide pour hiérarchie
+                td.textContent = idx === 0 ? "" : cell;
                 td.style.padding = "5px";
                 tr.appendChild(td);
             });
@@ -97,10 +99,10 @@ function afficherCSV(text, chantierName) {
             tr.appendChild(tdCheck);
 
             tbody.appendChild(tr);
-            lotLines.push(tr); // on stocke la ligne pour ce Lot
+            lotLines.push(tr);
         });
 
-        // Toggle Lot : n'affecte que les lignes de ce lot
+        // Toggle Lot
         trLot.addEventListener("click", () => {
             lotLines.forEach(tr => {
                 tr.style.display = tr.style.display === "none" ? "" : "none";
@@ -108,6 +110,7 @@ function afficherCSV(text, chantierName) {
         });
     });
 }
+
 
 
 // Charger index.csv
@@ -133,4 +136,5 @@ select.addEventListener("change", () => {
         .then(text => afficherCSV(text, select.value))
         .catch(err => console.error("Erreur fetch CSV chantier :", err));
 });
+
 
