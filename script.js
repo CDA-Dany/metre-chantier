@@ -17,6 +17,22 @@ function parsePrix(val) {
     ) || 0;
 }
 
+// Charger la liste des chantiers
+fetch("data/index.csv")
+    .then(res => res.text())
+    .then(text => {
+        const lignes = text.trim().split("\n");
+        lignes.forEach(ligne => {
+            const nom = ligne.replace(".csv", "").trim();
+            if (!nom) return;
+
+            const option = document.createElement("option");
+            option.value = nom;
+            option.textContent = nom;
+            selectChantier.appendChild(option);
+        });
+    });
+
 // Sélection chantier
 selectChantier.addEventListener("change", () => {
     const chantier = selectChantier.value;
@@ -62,7 +78,6 @@ function afficherCSV(text, chantierName) {
 
     Object.keys(groupes).forEach(lot => {
 
-        // Ignorer séparateurs
         if (lot === "-" || lot.includes("___")) return;
 
         let totalLot = 0;
@@ -76,7 +91,7 @@ function afficherCSV(text, chantierName) {
             }
         });
 
-        // Ligne lot
+        // Ligne LOT
         const trLot = document.createElement("tr");
         trLot.style.background = "#eee";
         trLot.style.cursor = "pointer";
@@ -92,7 +107,6 @@ function afficherCSV(text, chantierName) {
 
         const lignesLot = [];
 
-        // Lignes enfants
         groupes[lot].forEach(item => {
             const tr = document.createElement("tr");
             tr.style.display = "none";
@@ -119,7 +133,6 @@ function afficherCSV(text, chantierName) {
 
                 tr.style.textDecoration = checkbox.checked ? "line-through" : "none";
 
-                // Recalcul restant
                 let nouveauRestant = 0;
                 groupes[lot].forEach(it => {
                     const p = parsePrix(it.cells[COLONNE_PRIX]);
@@ -139,7 +152,6 @@ function afficherCSV(text, chantierName) {
             lignesLot.push(tr);
         });
 
-        // Déroulage / repli
         trLot.addEventListener("click", () => {
             lignesLot.forEach(l =>
                 l.style.display = l.style.display === "none" ? "" : "none"
@@ -147,28 +159,3 @@ function afficherCSV(text, chantierName) {
         });
     });
 }
-
-
-// Charger index.csv
-fetch("data/index.csv")
-    .then(res => res.text())
-    .then(text => {
-        const lignes = text.trim().split("\n").slice(1);
-        lignes.forEach(ligne => {
-            const [nom, fichier] = ligne.split(",");
-            const option = document.createElement("option");
-            option.value = fichier;
-            option.textContent = nom;
-            select.appendChild(option);
-        });
-    })
-    .catch(err => console.error("Erreur fetch index.csv :", err));
-
-// Quand un chantier est sélectionné
-select.addEventListener("change", () => {
-    if (!select.value) return;
-    fetch("data/" + select.value)
-        .then(res => res.text())
-        .then(text => afficherCSV(text, select.value))
-        .catch(err => console.error("Erreur fetch CSV chantier :", err));
-});
