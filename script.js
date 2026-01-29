@@ -1,266 +1,183 @@
-// =====================
-// UTILITAIRE PRIX
-// =====================
-function parsePrix(val) {
-    if (!val) return 0;
-    return parseFloat(
-        val
-            .toString()
-            .replace(/\s/g, "")
-            .replace("€", "")
-    ) || 0;
+// ====== UTILITAIRE ======
+function parsePrix(val){
+    if(!val) return 0;
+    return parseFloat(val.toString().replace(/\s/g,"").replace("€","")) || 0;
 }
 
-// =====================
-// STRUCTURE PAGE
-// =====================
-const body = document.body;
+// ====== ELEMENTS ======
+const searchInput = document.getElementById("searchInput");
+const select = document.getElementById("chantierSelect");
+const table = document.getElementById("mainTable");
+const thead = table.querySelector("thead");
+const tbody = table.querySelector("tbody");
+const totalGlobalSpan = document.getElementById("totalGlobalSpan");
+const restantGlobalSpan = document.getElementById("restantGlobalSpan");
 
-// ----- Menu déroulant -----
-const select = document.createElement("select");
-select.style.margin = "10px";
-body.appendChild(select);
+// ====== DONNEES ======
+let allChantiersData = {}; // { fichier: [{cells,index,fichier}] }
+let etatCasesGlobal = {}; // { "fichier-index": true/false }
 
-const optionDefaut = document.createElement("option");
-optionDefaut.value = "";
-optionDefaut.textContent = "-- Choisir un chantier --";
-select.appendChild(optionDefaut);
-
-// ----- Résumé global -----
-const resumeGlobal = document.createElement("div");
-resumeGlobal.style.width = "95%";
-resumeGlobal.style.margin = "15px auto";
-resumeGlobal.style.padding = "10px 15px";
-resumeGlobal.style.border = "1px solid #ccc";
-resumeGlobal.style.background = "#f8f8f8";
-resumeGlobal.style.display = "flex";
-resumeGlobal.style.justifyContent = "flex-end";
-resumeGlobal.style.gap = "40px";
-resumeGlobal.style.fontWeight = "bold";
-
-const totalGlobalSpan = document.createElement("span");
-const restantGlobalSpan = document.createElement("span");
-
-resumeGlobal.appendChild(totalGlobalSpan);
-resumeGlobal.appendChild(restantGlobalSpan);
-
-
-// ----- Tableau -----
-const table = document.createElement("table");
-table.style.borderCollapse = "collapse";
-table.style.margin = "20px auto";
-table.style.width = "95%";
-table.style.tableLayout = "fixed";
-
-const thead = document.createElement("thead");
-const tbody = document.createElement("tbody");
-
-table.appendChild(thead);
-table.appendChild(tbody);
-body.appendChild(table);
-body.appendChild(resumeGlobal);
-
-// =====================
-// AFFICHAGE CSV
-// =====================
-function afficherCSV(text, chantierName) {
-    thead.innerHTML = "";
-    tbody.innerHTML = "";
-
-    let totalGlobal = 0;
-    let totalGlobalRestant = 0;
-
-    const lignes = text.trim().split("\n");
-    if (lignes.length <= 1) return;
-
-    const headers = lignes[0].split(",");
-
-    // ----- EN-TÊTES -----
-    const trHead = document.createElement("tr");
-    headers.forEach(h => {
-        const th = document.createElement("th");
-        th.textContent = h;
-        th.style.padding = "6px";
-        th.style.background = "#333";
-        th.style.color = "white";
-        trHead.appendChild(th);
+// ====== CHARGEMENT INDEX ======
+fetch("data/index.csv")
+.then(res=>res.text())
+.then(text=>{
+    const lignes = text.trim().split("\n").slice(1);
+    lignes.forEach(ligne=>{
+        const [nom,fichier] = ligne.split(",");
+        const option = document.createElement("option");
+        option.value=fichier; option.textContent=nom;
+        select.appendChild(option);
     });
+});
 
-    const thCheck = document.createElement("th");
-    thCheck.textContent = "Fait";
-    thCheck.style.background = "#333";
-    thCheck.style.color = "white";
+// ====== CHARGEMENT DES CSV ======
+function loadSelectedChantiers(callback){
+    const selectedFiles = Array.from(select.selectedOptions).map(o=>o.value).filter(v=>v);
+    if(selectedFiles.length===0){ 
+        tbody.innerHTML="";thead.innerHTML=""; 
+        totalGlobalSpan.textContent=""; restantGlobalSpan.textContent=""; 
+        return; 
+    }
+
+    Promise.all(selectedFiles.map(f=>{
+        if(allChantiersData[f]) return allChantiersData[f];
+        return fetch("data/"+f).then(r=>r.text()).then(text=>{
+            const lignes = text.trim().split("\n");
+            if(lignes.length<=1) return [];
+            const data = lignes.slice(1).map((ligne,index)=>({cells:ligne.split(","), index, fichier:f}));
+            allChantiersData[f]=data;
+            return data;
+        });
+    })).then(results=>{
+        const merged = results.flat();
+        callback(merged);
+    });
+}
+
+// ====== AFFICHAGE TABLEAU ======
+function afficherTable(data, openLots=false){
+    tbody.innerHTML=""; thead.innerHTML="";
+    if(data.length===0) return;
+
+    // Headers (adapte si nécessaire)
+    const headers = ["Lot","Nom","Col3","Col4","Col5","Prix"];
+    const trHead=document.createElement("tr");
+    headers.forEach(h=>{ 
+        const th=document.createElement("th"); 
+        th.textContent=h; 
+        trHead.appendChild(th); 
+    });
+    const thCheck=document.createElement("th"); 
+    thCheck.textContent="Fait"; 
     trHead.appendChild(thCheck);
-
     thead.appendChild(trHead);
 
-    // ----- GROUPEMENT PAR LOT -----
+    // Grouper par lot
     const groupes = {};
-    lignes.slice(1).forEach((ligne, index) => {
-        const cells = ligne.split(",");
-        const lot = cells[0].trim();
-        if (!groupes[lot]) groupes[lot] = [];
-        groupes[lot].push({ cells, index });
+    data.forEach(item=>{
+        const lot = item.cells[0].trim();
+        if(!groupes[lot]) groupes[lot]=[];
+        groupes[lot].push(item);
     });
 
-    let etatCases = JSON.parse(
-        localStorage.getItem("etatCases-" + chantierName)
-    ) || {};
+    let totalGlobal=0; let totalGlobalRestant=0;
 
-    // ----- LOTS -----
-    Object.keys(groupes).forEach(lot => {
-        if (lot.includes("___") || lot === "-") return;
+    Object.keys(groupes).forEach(lot=>{
+        if(lot.includes("___")||lot==="-"||groupes[lot].length===0) return;
 
-        let totalLot = 0;
-        let totalRestant = 0;
-
-        groupes[lot].forEach(item => {
-            const prix = parsePrix(item.cells[5]);
-            totalLot += prix;
-            if (!etatCases[item.index]) {
-                totalRestant += prix;
-            }
+        let totalLot=0, totalRestant=0;
+        groupes[lot].forEach(it=>{
+            const prix=parsePrix(it.cells[5]);
+            totalLot+=prix;
+            const key=it.fichier+"-"+it.index;
+            if(!etatCasesGlobal[key]) totalRestant+=prix;
         });
+        totalGlobal+=totalLot; totalGlobalRestant+=totalRestant;
 
-        totalGlobal += totalLot;
-        totalGlobalRestant += totalRestant;
-
-        // ---- Ligne LOT ----
-        const trLot = document.createElement("tr");
-        trLot.style.background = "#f2f2f2";
-        trLot.style.cursor = "pointer";
-
-        const tdLot = document.createElement("td");
-        tdLot.colSpan = headers.length + 1;
-
-        const headerDiv = document.createElement("div");
-        headerDiv.style.display = "flex";
-        headerDiv.style.justifyContent = "space-between";
-        headerDiv.style.alignItems = "center";
-        headerDiv.style.fontWeight = "bold";
-
-        const nomLot = document.createElement("span");
-        nomLot.textContent = lot;
-
-        const totaux = document.createElement("span");
-        totaux.style.fontWeight = "normal";
-        totaux.style.fontSize = "13px";
-        totaux.innerHTML = `
-            <span style="margin-right:20px;">
-                Total : <strong>${totalLot.toFixed(2)} €</strong>
-            </span>
-            <span class="restant">
-                Restant : <strong>${totalRestant.toFixed(2)} €</strong>
-            </span>
-        `;
-
-        headerDiv.appendChild(nomLot);
-        headerDiv.appendChild(totaux);
-        tdLot.appendChild(headerDiv);
-        trLot.appendChild(tdLot);
+        // Ligne Lot
+        const trLot=document.createElement("tr"); trLot.className="lot";
+        const tdLot=document.createElement("td"); tdLot.colSpan=headers.length+1;
+        const headerDiv=document.createElement("div"); 
+        headerDiv.style.display="flex"; 
+        headerDiv.style.justifyContent="space-between";
+        const nomLot=document.createElement("span"); 
+        nomLot.textContent=lot;
+        const totaux=document.createElement("span"); totaux.className="totaux";
+        totaux.innerHTML=`<span>Total : <strong>${totalLot.toFixed(2)} €</strong></span>
+                           <span class="restant">Restant : <strong>${totalRestant.toFixed(2)} €</strong></span>`;
+        headerDiv.appendChild(nomLot); 
+        headerDiv.appendChild(totaux); 
+        tdLot.appendChild(headerDiv); 
+        trLot.appendChild(tdLot); 
         tbody.appendChild(trLot);
 
-        // ---- Lignes enfants ----
-        const lotLines = [];
-
-        groupes[lot].forEach(item => {
-            const tr = document.createElement("tr");
-            tr.style.display = "none";
-
-            item.cells.forEach((cell, idx) => {
-                const td = document.createElement("td");
-                td.textContent = idx === 0 ? "" : cell;
-                td.style.padding = "6px";
+        const lotLines=[];
+        groupes[lot].forEach(it=>{
+            const tr=document.createElement("tr"); tr.style.display="none";
+            it.cells.forEach((c,idx)=>{
+                const td=document.createElement("td"); 
+                td.textContent=idx===0?"":c; 
                 tr.appendChild(td);
             });
+            const tdCheck=document.createElement("td");
+            const checkbox=document.createElement("input"); 
+            checkbox.type="checkbox";
+            const key=it.fichier+"-"+it.index;
+            checkbox.checked=etatCasesGlobal[key]||false;
+            if(checkbox.checked) tr.style.textDecoration="line-through";
 
-            const tdCheck = document.createElement("td");
-            const checkbox = document.createElement("input");
-            checkbox.type = "checkbox";
-            checkbox.checked = etatCases[item.index] || false;
+            checkbox.addEventListener("change",()=>{
+                tr.style.textDecoration=checkbox.checked?"line-through":"none";
+                etatCasesGlobal[key]=checkbox.checked;
 
-            if (checkbox.checked) {
-                tr.style.textDecoration = "line-through";
-            }
-
-            checkbox.addEventListener("change", () => {
-                tr.style.textDecoration = checkbox.checked ? "line-through" : "none";
-                etatCases[item.index] = checkbox.checked;
-
-                localStorage.setItem(
-                    "etatCases-" + chantierName,
-                    JSON.stringify(etatCases)
-                );
-
-                // 🔄 recalcul restant LOT
-                let newRestantLot = 0;
-                groupes[lot].forEach(it => {
-                    if (!etatCases[it.index]) {
-                        newRestantLot += parsePrix(it.cells[5]);
-                    }
+                // Recalcul totaux lot
+                let newRestantLot=0;
+                groupes[lot].forEach(i=>{ 
+                    const k=i.fichier+"-"+i.index; 
+                    if(!etatCasesGlobal[k]) newRestantLot+=parsePrix(i.cells[5]); 
                 });
+                totaux.querySelector(".restant").innerHTML=`Restant : <strong>${newRestantLot.toFixed(2)} €</strong>`;
 
-                totaux.querySelector(".restant").innerHTML =
-                    `Restant : <strong>${newRestantLot.toFixed(2)} €</strong>`;
-
-                // 🔄 recalcul restant GLOBAL
-                let newGlobalRestant = 0;
-                Object.keys(groupes).forEach(l => {
-                    groupes[l].forEach(it => {
-                        if (!etatCases[it.index]) {
-                            newGlobalRestant += parsePrix(it.cells[5]);
-                        }
+                // Recalcul global
+                let newGlobalRestant=0;
+                Object.keys(groupes).forEach(l=>{
+                    groupes[l].forEach(i=>{
+                        const k=i.fichier+"-"+i.index; 
+                        if(!etatCasesGlobal[k]) newGlobalRestant+=parsePrix(i.cells[5]); 
                     });
                 });
-
-                restantGlobalSpan.innerHTML =
-                    `Restant global : <strong>${newGlobalRestant.toFixed(2)} €</strong>`;
+                restantGlobalSpan.innerHTML=`Restant global : <strong>${newGlobalRestant.toFixed(2)} €</strong>`;
             });
 
-            tdCheck.appendChild(checkbox);
-            tr.appendChild(tdCheck);
-            tbody.appendChild(tr);
+            tdCheck.appendChild(checkbox); 
+            tr.appendChild(tdCheck); 
+            tbody.appendChild(tr); 
             lotLines.push(tr);
         });
 
-        trLot.addEventListener("click", () => {
-            lotLines.forEach(tr =>
-                tr.style.display = tr.style.display === "none" ? "" : "none"
-            );
+        // Toggle Lot
+        trLot.addEventListener("click",()=>{ 
+            lotLines.forEach(tr=>tr.style.display=tr.style.display==="none"?"":"none"); 
         });
+
+        // Déplier automatiquement si openLots = true (recherche)
+        if(openLots) lotLines.forEach(tr=>tr.style.display="");
     });
 
-    // ----- Affichage global -----
-    totalGlobalSpan.innerHTML =
-        `Total global : <strong>${totalGlobal.toFixed(2)} €</strong>`;
-
-    restantGlobalSpan.innerHTML =
-        `Restant global : <strong>${totalGlobalRestant.toFixed(2)} €</strong>`;
+    totalGlobalSpan.innerHTML=`Total global : <strong>${totalGlobal.toFixed(2)} €</strong>`;
+    restantGlobalSpan.innerHTML=`Restant global : <strong>${totalGlobalRestant.toFixed(2)} €</strong>`;
 }
 
-// =====================
-// CHARGEMENT INDEX
-// =====================
-fetch("data/index.csv")
-    .then(res => res.text())
-    .then(text => {
-        const lignes = text.trim().split("\n").slice(1);
-        lignes.forEach(ligne => {
-            const [nom, fichier] = ligne.split(",");
-            const option = document.createElement("option");
-            option.value = fichier;
-            option.textContent = nom;
-            select.appendChild(option);
-        });
+// ====== FILTRAGE ======
+function filterAndDisplay(){
+    const query=searchInput.value.trim().toLowerCase();
+    loadSelectedChantiers(allData=>{
+        let filtered = allData;
+        if(query!=="") filtered = allData.filter(d=>d.cells[1].toLowerCase().includes(query));
+        afficherTable(filtered, query!==""); // openLots = true si recherche
     });
+}
 
-// =====================
-// CHANGEMENT CHANTIER
-// =====================
-select.addEventListener("change", () => {
-    if (!select.value) return;
-    fetch("data/" + select.value)
-        .then(res => res.text())
-        .then(text => afficherCSV(text, select.value));
-});
-
+// ====== EVENTS ======
+searchInput.addEventListener("input", filterAndDisplay);
+select.addEventListener("change", filterAndDisplay);
