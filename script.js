@@ -1,32 +1,25 @@
-// Sélection du body
-const body = document.body;
+const selectChantier = document.getElementById("chantierSelect");
+const thead = document.querySelector("thead");
+const tbody = document.querySelector("tbody");
 
-// Menu déroulant
-const select = document.createElement("select");
-body.appendChild(select);
-const optionDefaut = document.createElement("option");
-optionDefaut.value = "";
-optionDefaut.textContent = "-- Choisir un chantier --";
-select.appendChild(optionDefaut);
+const COLONNE_PRIX = 5; // 6e colonne (index 5)
 
-// Tableau
-const table = document.createElement("table");
-table.border = 1;
-table.style.borderCollapse = "collapse";
-table.style.marginTop = "20px";
-const thead = document.createElement("thead");
-const tbody = document.createElement("tbody");
-table.appendChild(thead);
-table.appendChild(tbody);
-body.appendChild(table);
+// Chargement du chantier
+selectChantier.addEventListener("change", () => {
+    const chantier = selectChantier.value;
+    if (!chantier) return;
 
-// Fonction pour afficher CSV regroupé par Lot
+    fetch(`data/${chantier}.csv`)
+        .then(res => res.text())
+        .then(text => afficherCSV(text, chantier));
+});
+
 function afficherCSV(text, chantierName) {
     thead.innerHTML = "";
     tbody.innerHTML = "";
 
     const lignes = text.trim().split("\n");
-    if (lignes.length === 0) return;
+    if (lignes.length < 2) return;
 
     // En-têtes
     const headers = lignes[0].split(",");
@@ -34,7 +27,6 @@ function afficherCSV(text, chantierName) {
     headers.forEach(h => {
         const th = document.createElement("th");
         th.textContent = h;
-        th.style.padding = "5px";
         trHead.appendChild(th);
     });
     const thCheck = document.createElement("th");
@@ -42,103 +34,109 @@ function afficherCSV(text, chantierName) {
     trHead.appendChild(thCheck);
     thead.appendChild(trHead);
 
-    // Grouper par Lot
+    // Regroupement par Lot
     const groupes = {};
     lignes.slice(1).forEach((ligne, index) => {
         const cells = ligne.split(",");
-        const lot = cells[0].trim();
+        const lot = cells[0]?.trim();
+        if (!lot) return;
+
         if (!groupes[lot]) groupes[lot] = [];
-        groupes[lot].push({cells, index});
+        groupes[lot].push({ cells, index });
     });
 
-    // État des cases
     let etatCases = JSON.parse(localStorage.getItem("etatCases-" + chantierName)) || {};
 
-    // Créer les lignes pour chaque Lot
     Object.keys(groupes).forEach(lot => {
-        // Filtrer les Lots à ignorer
-        if (lot.includes("___") || lot === "-") return;
 
-        // Ligne Lot (parent)
+        // Ignorer lots inutiles
+        if (lot === "-" || lot.includes("___")) return;
+
+        // Calcul total et restant
+        let totalLot = 0;
+        let restantLot = 0;
+
+        groupes[lot].forEach(item => {
+            const valeur = parseFloat(item.cells[COLONNE_PRIX]?.replace(",", "."));
+            if (isNaN(valeur)) return;
+
+            totalLot += valeur;
+            if (!etatCases[item.index]) {
+                restantLot += valeur;
+            }
+        });
+
+        // Ligne LOT
         const trLot = document.createElement("tr");
-        trLot.style.backgroundColor = "#eee";
+        trLot.style.background = "#eee";
         trLot.style.cursor = "pointer";
 
         const tdLot = document.createElement("td");
-        tdLot.textContent = lot;
         tdLot.colSpan = headers.length + 1;
         tdLot.style.fontWeight = "bold";
+        tdLot.textContent =
+            `${lot} — Total : ${totalLot.toFixed(2)} € | Restant : ${restantLot.toFixed(2)} €`;
+
         trLot.appendChild(tdLot);
         tbody.appendChild(trLot);
 
         // Lignes enfants
-        const lotLines = [];
+        const lignesLot = [];
+
         groupes[lot].forEach(item => {
             const tr = document.createElement("tr");
-            tr.style.display = "none"; // caché par défaut
+            tr.style.display = "none";
 
-            item.cells.forEach((cell, idx) => {
+            item.cells.forEach((cell, i) => {
                 const td = document.createElement("td");
-                td.textContent = idx === 0 ? "" : cell; // hiérarchie
-                td.style.padding = "5px";
+                td.textContent = i === 0 ? "" : cell;
                 tr.appendChild(td);
             });
 
-            // Case à cocher
             const tdCheck = document.createElement("td");
             const checkbox = document.createElement("input");
             checkbox.type = "checkbox";
             checkbox.checked = etatCases[item.index] || false;
-            if (checkbox.checked) tr.style.textDecoration = "line-through";
+
+            if (checkbox.checked) {
+                tr.style.textDecoration = "line-through";
+            }
 
             checkbox.addEventListener("change", () => {
-                tr.style.textDecoration = checkbox.checked ? "line-through" : "none";
                 etatCases[item.index] = checkbox.checked;
-                localStorage.setItem("etatCases-" + chantierName, JSON.stringify(etatCases));
+                localStorage.setItem(
+                    "etatCases-" + chantierName,
+                    JSON.stringify(etatCases)
+                );
+
+                tr.style.textDecoration = checkbox.checked ? "line-through" : "none";
+
+                // Recalcul du restant
+                let nouveauRestant = 0;
+                groupes[lot].forEach(it => {
+                    const val = parseFloat(it.cells[COLONNE_PRIX]?.replace(",", "."));
+                    if (isNaN(val)) return;
+                    if (!etatCases[it.index]) {
+                        nouveauRestant += val;
+                    }
+                });
+
+                tdLot.textContent =
+                    `${lot} — Total : ${totalLot.toFixed(2)} € | Restant : ${nouveauRestant.toFixed(2)} €`;
             });
 
             tdCheck.appendChild(checkbox);
             tr.appendChild(tdCheck);
 
             tbody.appendChild(tr);
-            lotLines.push(tr);
+            lignesLot.push(tr);
         });
 
-        // Toggle Lot
+        // Toggle du lot
         trLot.addEventListener("click", () => {
-            lotLines.forEach(tr => {
-                tr.style.display = tr.style.display === "none" ? "" : "none";
-            });
+            lignesLot.forEach(l =>
+                l.style.display = l.style.display === "none" ? "" : "none"
+            );
         });
     });
 }
-
-
-
-
-// Charger index.csv
-fetch("data/index.csv")
-    .then(res => res.text())
-    .then(text => {
-        const lignes = text.trim().split("\n").slice(1);
-        lignes.forEach(ligne => {
-            const [nom, fichier] = ligne.split(",");
-            const option = document.createElement("option");
-            option.value = fichier;
-            option.textContent = nom;
-            select.appendChild(option);
-        });
-    })
-    .catch(err => console.error("Erreur fetch index.csv :", err));
-
-// Quand un chantier est sélectionné
-select.addEventListener("change", () => {
-    if (!select.value) return;
-    fetch("data/" + select.value)
-        .then(res => res.text())
-        .then(text => afficherCSV(text, select.value))
-        .catch(err => console.error("Erreur fetch CSV chantier :", err));
-});
-
-
-
