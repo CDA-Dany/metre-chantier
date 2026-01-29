@@ -12,8 +12,6 @@ function parsePrix(val) {
         val
             .toString()
             .replace("€", "")
-            .replace(/\s/g, "")
-            .replace(",", ".")
     ) || 0;
 }
 
@@ -159,3 +157,4 @@ function afficherCSV(text, chantierName) {
         });
     });
 }
+
