@@ -31,9 +31,10 @@ document.body.appendChild(tooltip);
 // =====================
 // Données globales
 // =====================
-let chantiers = [];          // [{nom, fichier}]
-let csvCache = {};          // contenu CSV
+let chantiers = [];
+let csvCache = {};
 let chantiersActifs = new Set();
+let lotsOuverts = {}; // 🔴 mémorise les lots dépliés
 
 // =====================
 // Utils
@@ -41,8 +42,7 @@ let chantiersActifs = new Set();
 function parsePrix(val) {
     if (!val) return 0;
     return parseFloat(
-        val
-            .toString()
+        val.toString()
             .replace("€", "")
             .replace(/\s/g, "")
             .replace(",", ".")
@@ -75,7 +75,6 @@ function afficherCheckboxes() {
 
         const cb = document.createElement("input");
         cb.type = "checkbox";
-        cb.value = c.fichier;
 
         cb.addEventListener("change", () => {
             if (cb.checked) {
@@ -120,9 +119,9 @@ function render() {
     let globalRestant = 0;
     let headersDone = false;
 
-    // ===== regrouper tous les lots de tous les chantiers =====
     const groupesGlobaux = {};
 
+    // ===== Collecte des lignes =====
     chantiersActifs.forEach(chantier => {
         const text = csvCache[chantier.fichier];
         if (!text) return;
@@ -166,7 +165,7 @@ function render() {
         });
     });
 
-    // ===== afficher chaque lot =====
+    // ===== Affichage =====
     Object.keys(groupesGlobaux).forEach(lot => {
         let lotTotal = 0;
         let lotRestant = 0;
@@ -180,19 +179,20 @@ function render() {
         globalTotal += lotTotal;
         globalRestant += lotRestant;
 
-        // ===== Ligne LOT =====
+        // --- Ligne LOT ---
         const trLot = document.createElement("tr");
         trLot.style.background = "#f0f0f0";
         trLot.style.cursor = "pointer";
 
         const tdLot = document.createElement("td");
-        tdLot.colSpan = 7; // headers + checkbox
-
-        tdLot.innerHTML = `<strong>${lot}</strong>
+        tdLot.colSpan = 7;
+        tdLot.innerHTML = `
+            <strong>${lot}</strong>
             <span style="float:right">
                 Total : ${lotTotal.toFixed(2)} € |
                 Restant : ${lotRestant.toFixed(2)} €
-            </span>`;
+            </span>
+        `;
         trLot.appendChild(tdLot);
         tbody.appendChild(trLot);
 
@@ -206,7 +206,7 @@ function render() {
                 const td = document.createElement("td");
                 td.textContent = idx === 0 ? "" : cell;
 
-                // Tooltip uniquement sur la colonne NOM
+                // Tooltip sur colonne NOM
                 if (idx === 1) {
                     td.style.cursor = "help";
                     td.addEventListener("mouseenter", () => {
@@ -248,13 +248,21 @@ function render() {
             lignesLot.push(tr);
         });
 
+        // --- Restaurer état ouvert ---
+        if (lotsOuverts[lot]) {
+            lignesLot.forEach(tr => tr.style.display = "");
+        }
+
         trLot.addEventListener("click", () => {
+            const ouvert = lignesLot[0].style.display === "none";
+            lotsOuverts[lot] = ouvert;
             lignesLot.forEach(tr => {
-                tr.style.display = tr.style.display === "none" ? "" : "none";
+                tr.style.display = ouvert ? "" : "none";
             });
         });
     });
 
+    // ===== Totaux globaux EN BAS =====
     totalGlobalSpan.textContent =
         "Total global : " + globalTotal.toFixed(2) + " €";
     restantGlobalSpan.textContent =
