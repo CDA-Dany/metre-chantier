@@ -231,10 +231,40 @@ function render() {
 
     // Lot mère Pliages + sous-lots
     if (Object.keys(pliages).length) {
-        drawLot("Pliages", []); // lot mère vide
-        if (lotsOuverts["Pliages"]) {
-            Object.keys(pliages).forEach(l => drawLot(l, pliages[l], 30)); // sous-lots indentés
-        }
+       // Calcul total et restant de tous les sous-lots de Pliages
+let totalP = 0;
+let restantP = 0;
+Object.values(pliages).forEach(sous => {
+    sous.forEach(r => {
+        const p = parsePrix(r.cells[5]);
+        totalP += p;
+        if (!r.etats[r.i]) restantP += p;
+    });
+});
+
+const openP = !!lotsOuverts["Pliages"];
+const trP = document.createElement("tr");
+trP.className = "lot";
+trP.innerHTML = `
+    <td colspan="7" style="padding-left:0px">
+        <span class="toggle">${openP ? "▾" : "▸"}</span>
+        Pliages
+        <span class="totaux">
+            <span class="total-gris">${totalP.toFixed(2)} €</span> | 
+            <span class="restant">${restantP.toFixed(2)} €</span>
+        </span>
+    </td>
+`;
+trP.onclick = () => {
+    lotsOuverts["Pliages"] = !openP;
+    render();
+};
+tableBody.appendChild(trP);
+
+if (openP) {
+    Object.keys(pliages).forEach(l => drawLot(l, pliages[l], 30)); // sous-lots indentés
+}
+
     }
 
     totalGlobalSpan.textContent = `Total global : ${totalGlobal.toFixed(2)} €`;
@@ -243,4 +273,5 @@ function render() {
 
 // Recherche en temps réel
 searchInput.oninput = render;
+
 
