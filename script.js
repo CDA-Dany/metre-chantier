@@ -25,7 +25,6 @@ tooltip.style.fontSize = "12px";
 tooltip.style.whiteSpace = "nowrap";
 tooltip.style.zIndex = "9999";
 tooltip.style.display = "none";
-tooltip.style.boxShadow = "0 4px 10px rgba(0,0,0,0.25)";
 document.body.appendChild(tooltip);
 
 // =====================
@@ -34,7 +33,8 @@ document.body.appendChild(tooltip);
 let chantiers = [];
 let csvCache = {};
 let chantiersActifs = new Set();
-let lotsOuverts = {}; // 🔴 mémorise les lots dépliés
+let lotsOuverts = {};
+let sousLotsOuverts = {};
 
 // =====================
 // Utils
@@ -77,12 +77,8 @@ function afficherCheckboxes() {
         cb.type = "checkbox";
 
         cb.addEventListener("change", () => {
-            if (cb.checked) {
-                chantiersActifs.add(c);
-                chargerCSV(c);
-            } else {
-                chantiersActifs.delete(c);
-            }
+            cb.checked ? chantiersActifs.add(c) : chantiersActifs.delete(c);
+            chargerCSV(c);
             render();
         });
 
@@ -97,7 +93,6 @@ function afficherCheckboxes() {
 // =====================
 function chargerCSV(chantier) {
     if (csvCache[chantier.fichier]) return;
-
     fetch("data/" + chantier.fichier)
         .then(res => res.text())
         .then(text => {
@@ -113,15 +108,13 @@ function render() {
     thead.innerHTML = "";
     tbody.innerHTML = "";
 
-    if (chantiersActifs.size === 0) return;
-
     let globalTotal = 0;
     let globalRestant = 0;
     let headersDone = false;
 
-    const groupesGlobaux = {};
+    const groupes = {};
+    const groupesPliages = {};
 
-    // ===== Collecte des lignes =====
     chantiersActifs.forEach(chantier => {
         const text = csvCache[chantier.fichier];
         if (!text) return;
@@ -130,16 +123,14 @@ function render() {
         const headers = lignes[0].split(",");
 
         if (!headersDone) {
-            const trHead = document.createElement("tr");
+            const tr = document.createElement("tr");
             headers.forEach(h => {
                 const th = document.createElement("th");
                 th.textContent = h;
-                trHead.appendChild(th);
+                tr.appendChild(th);
             });
-            const thCheck = document.createElement("th");
-            thCheck.textContent = "Fait";
-            trHead.appendChild(thCheck);
-            thead.appendChild(trHead);
+            tr.appendChild(document.createElement("th")).textContent = "Fait";
+            thead.appendChild(tr);
             headersDone = true;
         }
 
@@ -154,51 +145,48 @@ function render() {
             if (!lot || lot === "-" || lot.includes("___")) return;
             if (searchInput.value && !nom.includes(searchInput.value.toLowerCase())) return;
 
-            if (!groupesGlobaux[lot]) groupesGlobaux[lot] = [];
-            groupesGlobaux[lot].push({
+            const cible = lot.toLowerCase().includes("pliage")
+                ? groupesPliages
+                : groupes;
+
+            if (!cible[lot]) cible[lot] = [];
+            cible[lot].push({
                 cells,
                 index,
                 chantierNom: chantier.nom,
-                etatCases,
-                fichier: chantier.fichier
+                fichier: chantier.fichier,
+                etatCases
             });
         });
     });
 
-    // ===== Affichage =====
-    Object.keys(groupesGlobaux).forEach(lot => {
-        let lotTotal = 0;
-        let lotRestant = 0;
+    // ===== AFFICHAGE NORMAL =====
+    function afficherLot(lot, lignesLotData) {
+        let total = 0, restant = 0;
 
-        groupesGlobaux[lot].forEach(item => {
-            const prix = parsePrix(item.cells[5]);
-            lotTotal += prix;
-            if (!item.etatCases[item.index]) lotRestant += prix;
+        lignesLotData.forEach(l => {
+            const p = parsePrix(l.cells[5]);
+            total += p;
+            if (!l.etatCases[l.index]) restant += p;
         });
 
-        globalTotal += lotTotal;
-        globalRestant += lotRestant;
+        globalTotal += total;
+        globalRestant += restant;
 
-        // --- Ligne LOT ---
         const trLot = document.createElement("tr");
         trLot.style.background = "#f0f0f0";
         trLot.style.cursor = "pointer";
 
         const tdLot = document.createElement("td");
         tdLot.colSpan = 7;
-        tdLot.innerHTML = `
-            <strong>${lot}</strong>
-            <span style="float:right">
-                Total : ${lotTotal.toFixed(2)} € |
-                Restant : ${lotRestant.toFixed(2)} €
-            </span>
-        `;
+        tdLot.innerHTML = `<strong>${lot}</strong>
+            <span style="float:right">Total : ${total.toFixed(2)} € | Restant : ${restant.toFixed(2)} €</span>`;
         trLot.appendChild(tdLot);
         tbody.appendChild(trLot);
 
-        const lignesLot = [];
+        const lignes = [];
 
-        groupesGlobaux[lot].forEach(item => {
+        lignesLotData.forEach(item => {
             const tr = document.createElement("tr");
             tr.style.display = "none";
 
@@ -206,9 +194,7 @@ function render() {
                 const td = document.createElement("td");
                 td.textContent = idx === 0 ? "" : cell;
 
-                // Tooltip sur colonne NOM
                 if (idx === 1) {
-                    td.style.cursor = "help";
                     td.addEventListener("mouseenter", () => {
                         tooltip.textContent = item.chantierNom;
                         tooltip.style.display = "block";
@@ -217,9 +203,7 @@ function render() {
                         tooltip.style.left = e.clientX + 12 + "px";
                         tooltip.style.top = e.clientY + 12 + "px";
                     });
-                    td.addEventListener("mouseleave", () => {
-                        tooltip.style.display = "none";
-                    });
+                    td.addEventListener("mouseleave", () => tooltip.style.display = "none");
                 }
 
                 tr.appendChild(td);
@@ -230,14 +214,9 @@ function render() {
             cb.type = "checkbox";
             cb.checked = !!item.etatCases[item.index];
 
-            if (cb.checked) tr.style.textDecoration = "line-through";
-
             cb.addEventListener("change", () => {
                 item.etatCases[item.index] = cb.checked;
-                localStorage.setItem(
-                    "etat-" + item.fichier,
-                    JSON.stringify(item.etatCases)
-                );
+                localStorage.setItem("etat-" + item.fichier, JSON.stringify(item.etatCases));
                 render();
             });
 
@@ -245,31 +224,49 @@ function render() {
             tr.appendChild(tdCheck);
 
             tbody.appendChild(tr);
-            lignesLot.push(tr);
+            lignes.push(tr);
         });
 
-        // --- Restaurer état ouvert ---
-        if (lotsOuverts[lot]) {
-            lignesLot.forEach(tr => tr.style.display = "");
-        }
+        if (lotsOuverts[lot]) lignes.forEach(tr => tr.style.display = "");
 
         trLot.addEventListener("click", () => {
-            const ouvert = lignesLot[0].style.display === "none";
-            lotsOuverts[lot] = ouvert;
-            lignesLot.forEach(tr => {
-                tr.style.display = ouvert ? "" : "none";
-            });
+            const open = lignes[0]?.style.display === "none";
+            lotsOuverts[lot] = open;
+            lignes.forEach(tr => tr.style.display = open ? "" : "none");
         });
-    });
+    }
 
-    // ===== Totaux globaux EN BAS =====
-    totalGlobalSpan.textContent =
-        "Total global : " + globalTotal.toFixed(2) + " €";
-    restantGlobalSpan.textContent =
-        "Restant global : " + globalRestant.toFixed(2) + " €";
+    Object.keys(groupes).forEach(lot => afficherLot(lot, groupes[lot]));
+
+    // ===== LOT MÈRE PLIAGES =====
+    if (Object.keys(groupesPliages).length) {
+        const trMere = document.createElement("tr");
+        trMere.style.background = "#ddd";
+        trMere.style.cursor = "pointer";
+
+        const tdMere = document.createElement("td");
+        tdMere.colSpan = 7;
+        tdMere.innerHTML = `<strong>Pliages</strong>`;
+        trMere.appendChild(tdMere);
+        tbody.appendChild(trMere);
+
+        const sousLots = [];
+
+        Object.keys(groupesPliages).forEach(sousLot => {
+            afficherLot(sousLot, groupesPliages[sousLot]);
+            sousLots.push(sousLot);
+        });
+
+        trMere.addEventListener("click", () => {
+            sousLots.forEach(lot => {
+                lotsOuverts[lot] = !lotsOuverts[lot];
+            });
+            render();
+        });
+    }
+
+    totalGlobalSpan.textContent = `Total global : ${globalTotal.toFixed(2)} €`;
+    restantGlobalSpan.textContent = `Restant global : ${globalRestant.toFixed(2)} €`;
 }
 
-// =====================
-// Recherche temps réel
-// =====================
 searchInput.addEventListener("input", render);
