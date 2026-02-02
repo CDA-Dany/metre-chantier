@@ -33,7 +33,7 @@ function parsePrix(v) {
 
 // Ouvrir / fermer menu chantier
 chantierBtn.onclick = (e) => {
-    e.stopPropagation(); // empêcher propagation au document
+    e.stopPropagation();
     chantierMenu.style.display =
         chantierMenu.style.display === "block" ? "none" : "block";
 };
@@ -152,7 +152,7 @@ function render() {
             <td colspan="7" style="padding-left:${indent}px">
                 <span class="toggle">${open ? "▾" : "▸"}</span>
                 ${name}
-                <span style="float:right">${total.toFixed(2)} € | ${restant.toFixed(2)} €</span>
+                <span class="totaux">${total.toFixed(2)} € | ${restant.toFixed(2)} €</span>
             </td>
         `;
         tr.onclick = () => {
