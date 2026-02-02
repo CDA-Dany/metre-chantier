@@ -1,39 +1,18 @@
-// =====================
-// Sélections HTML
-// =====================
 const searchInput = document.getElementById("searchInput");
-const chantierBox = document.getElementById("chantierCheckboxes");
-const table = document.getElementById("mainTable");
-const thead = table.querySelector("thead");
-const tbody = table.querySelector("tbody");
+const tableHead = document.querySelector("thead");
+const tableBody = document.querySelector("tbody");
+const totalGlobalSpan = document.getElementById("totalGlobal");
+const restantGlobalSpan = document.getElementById("restantGlobal");
 
-const totalGlobalSpan = document.getElementById("totalGlobalSpan");
-const restantGlobalSpan = document.getElementById("restantGlobalSpan");
+const chantierBtn = document.getElementById("chantierBtn");
+const chantierMenu = document.getElementById("chantierMenu");
 
-// =====================
-// Tooltip chantier
-// =====================
-const tooltip = document.createElement("div");
-tooltip.style.cssText = `
-    position:fixed;
-    background:#222;
-    color:#fff;
-    padding:6px 10px;
-    border-radius:6px;
-    font-size:12px;
-    pointer-events:none;
-    display:none;
-    z-index:9999;
-`;
-document.body.appendChild(tooltip);
-
-// =====================
 let chantiers = [];
 let csvCache = {};
 let chantiersActifs = new Set();
-let etatLots = {}; // ouverts / fermés
+let lotsOuverts = {};
 
-// =====================
+// ========================
 function parsePrix(v) {
     return parseFloat(
         (v || "0")
@@ -43,9 +22,14 @@ function parsePrix(v) {
     ) || 0;
 }
 
-// =====================
-// Charger index.csv
-// =====================
+// ========================
+// MENU CHANTIERS
+// ========================
+chantierBtn.onclick = () => {
+    chantierMenu.style.display =
+        chantierMenu.style.display === "block" ? "none" : "block";
+};
+
 fetch("data/index.csv")
     .then(r => r.text())
     .then(t => {
@@ -53,36 +37,29 @@ fetch("data/index.csv")
             const [nom, fichier] = l.split(",");
             chantiers.push({ nom: nom.trim(), fichier: fichier.trim() });
         });
-        afficherChantiers();
+        renderChantiers();
     });
 
-// =====================
-function afficherChantiers() {
-    chantierBox.innerHTML = "";
-
+function renderChantiers() {
+    chantierMenu.innerHTML = "";
     chantiers.forEach(c => {
         const label = document.createElement("label");
-        label.style.display = "block";
-        label.style.cursor = "default";
-
         const cb = document.createElement("input");
         cb.type = "checkbox";
 
-        // 👉 SEULE la checkbox agit
-        cb.addEventListener("change", () => {
+        cb.onchange = () => {
             cb.checked ? chantiersActifs.add(c) : chantiersActifs.delete(c);
-            chargerCSV(c);
+            loadCSV(c);
             render();
-        });
+        };
 
         label.appendChild(cb);
-        label.append(" " + c.nom);
-        chantierBox.appendChild(label);
+        label.append(c.nom);
+        chantierMenu.appendChild(label);
     });
 }
 
-// =====================
-function chargerCSV(c) {
+function loadCSV(c) {
     if (csvCache[c.fichier]) return;
     fetch("data/" + c.fichier)
         .then(r => r.text())
@@ -92,33 +69,31 @@ function chargerCSV(c) {
         });
 }
 
-// =====================
-// RENDER
-// =====================
+// ========================
+// RENDER TABLE
+// ========================
 function render() {
-    thead.innerHTML = "";
-    tbody.innerHTML = "";
+    tableHead.innerHTML = "";
+    tableBody.innerHTML = "";
 
-    let globalTotal = 0;
-    let globalRestant = 0;
-    let headerDone = false;
+    let totalGlobal = 0;
+    let restantGlobal = 0;
 
     const lots = {};
     const pliages = {};
 
     chantiersActifs.forEach(c => {
-        const txt = csvCache[c.fichier];
-        if (!txt) return;
+        const csv = csvCache[c.fichier];
+        if (!csv) return;
 
-        const lignes = txt.trim().split("\n");
+        const lignes = csv.trim().split("\n");
         const headers = lignes[0].split(",");
 
-        if (!headerDone) {
+        if (!tableHead.innerHTML) {
             const tr = document.createElement("tr");
             headers.forEach(h => tr.appendChild(Object.assign(document.createElement("th"), { textContent: h })));
             tr.appendChild(Object.assign(document.createElement("th"), { textContent: "Fait" }));
-            thead.appendChild(tr);
-            headerDone = true;
+            tableHead.appendChild(tr);
         }
 
         const etats = JSON.parse(localStorage.getItem("etat-" + c.fichier)) || {};
@@ -133,138 +108,80 @@ function render() {
 
             const cible = lot.toLowerCase().includes("pliage") ? pliages : lots;
             cible[lot] ??= [];
-            cible[lot].push({ cells, i, c, etats });
+            cible[lot].push({ cells, i, etats, c });
         });
     });
 
-    function creerLot(nomLot, data, indent = 0) {
+    function drawLot(name, rows, indent = 0) {
         let total = 0;
         let restant = 0;
 
-        data.forEach(d => {
-            const p = parsePrix(d.cells[5]);
+        rows.forEach(r => {
+            const p = parsePrix(r.cells[5]);
             total += p;
-            if (!d.etats[d.i]) restant += p;
+            if (!r.etats[r.i]) restant += p;
         });
 
-        globalTotal += total;
-        globalRestant += restant;
+        totalGlobal += total;
+        restantGlobal += restant;
 
-        const ouvert = !!etatLots[nomLot];
-        const fleche = ouvert ? "▾" : "▸";
-
-        const trLot = document.createElement("tr");
-        trLot.style.background = "#f2f2f2";
-        trLot.style.cursor = "pointer";
-
-        const tdLot = document.createElement("td");
-        tdLot.colSpan = 7;
-        tdLot.style.paddingLeft = indent + "px";
-        tdLot.innerHTML = `
-            ${fleche} <strong>${nomLot}</strong>
-            <span style="float:right">${total.toFixed(2)} € | ${restant.toFixed(2)} €</span>
+        const open = !!lotsOuverts[name];
+        const tr = document.createElement("tr");
+        tr.className = "lot";
+        tr.innerHTML = `
+            <td colspan="7" style="padding-left:${indent}px">
+                <span class="toggle">${open ? "▾" : "▸"}</span>
+                ${name}
+                <span style="float:right">${total.toFixed(2)} € | ${restant.toFixed(2)} €</span>
+            </td>
         `;
-        trLot.appendChild(tdLot);
-        tbody.appendChild(trLot);
-
-        trLot.addEventListener("click", () => {
-            etatLots[nomLot] = !etatLots[nomLot];
+        tr.onclick = () => {
+            lotsOuverts[name] = !open;
             render();
-        });
+        };
+        tableBody.appendChild(tr);
 
-        data.forEach(d => {
-            const tr = document.createElement("tr");
-            tr.style.display = ouvert ? "" : "none";
+        if (!open) return;
 
-            if (d.etats[d.i]) {
-                tr.style.textDecoration = "line-through";
-                tr.style.opacity = "0.6";
-            }
+        rows.forEach(r => {
+            const trL = document.createElement("tr");
+            trL.className = "ligne";
+            if (r.etats[r.i]) trL.classList.add("fait");
 
-            d.cells.forEach((cell, idx) => {
+            r.cells.forEach((c, idx) => {
                 const td = document.createElement("td");
-                td.textContent = idx === 0 ? "" : cell;
-
-                // Tooltip sur NOM (colonne 2)
-                if (idx === 1) {
-                    td.style.cursor = "help";
-                    td.addEventListener("mouseenter", () => {
-                        tooltip.textContent = d.c.nom;
-                        tooltip.style.display = "block";
-                    });
-                    td.addEventListener("mousemove", e => {
-                        tooltip.style.left = e.clientX + 12 + "px";
-                        tooltip.style.top = e.clientY + 12 + "px";
-                    });
-                    td.addEventListener("mouseleave", () => tooltip.style.display = "none");
-                }
-
-                tr.appendChild(td);
+                td.textContent = idx === 0 ? "" : c;
+                trL.appendChild(td);
             });
 
-            const tdCheck = document.createElement("td");
+            const tdC = document.createElement("td");
             const cb = document.createElement("input");
             cb.type = "checkbox";
-            cb.checked = !!d.etats[d.i];
-
-            cb.addEventListener("change", () => {
-                d.etats[d.i] = cb.checked;
-                localStorage.setItem("etat-" + d.c.fichier, JSON.stringify(d.etats));
+            cb.checked = !!r.etats[r.i];
+            cb.onchange = () => {
+                r.etats[r.i] = cb.checked;
+                localStorage.setItem("etat-" + r.c.fichier, JSON.stringify(r.etats));
                 render();
-            });
+            };
+            tdC.appendChild(cb);
+            trL.appendChild(tdC);
 
-            tdCheck.appendChild(cb);
-            tr.appendChild(tdCheck);
-
-            tbody.appendChild(tr);
+            tableBody.appendChild(trL);
         });
     }
 
-    Object.keys(lots).forEach(lot => creerLot(lot, lots[lot]));
+    Object.keys(lots).forEach(l => drawLot(l, lots[l]));
 
-    // =====================
-    // LOT MÈRE : PLIAGES
-    // =====================
     if (Object.keys(pliages).length) {
-        let totalP = 0;
-        let restantP = 0;
-
-        Object.values(pliages).flat().forEach(d => {
-            const p = parsePrix(d.cells[5]);
-            totalP += p;
-            if (!d.etats[d.i]) restantP += p;
-        });
-
-        const ouvert = !!etatLots["Pliages"];
-        const fleche = ouvert ? "▾" : "▸";
-
-        const tr = document.createElement("tr");
-        tr.style.background = "#f2f2f2";
-        tr.style.cursor = "pointer";
-
-        const td = document.createElement("td");
-        td.colSpan = 7;
-        td.innerHTML = `
-            ${fleche} <strong>Pliages</strong>
-            <span style="float:right">${totalP.toFixed(2)} € | ${restantP.toFixed(2)} €</span>
-        `;
-        tr.appendChild(td);
-        tbody.appendChild(tr);
-
-        tr.addEventListener("click", () => {
-            etatLots["Pliages"] = !etatLots["Pliages"];
-            render();
-        });
-
-        if (ouvert) {
-            Object.keys(pliages).forEach(lot =>
-                creerLot(lot, pliages[lot], 30)
-            );
+        const all = Object.values(pliages).flat();
+        drawLot("Pliages", all);
+        if (lotsOuverts["Pliages"]) {
+            Object.keys(pliages).forEach(l => drawLot(l, pliages[l], 30));
         }
     }
 
-    totalGlobalSpan.textContent = `Total global : ${globalTotal.toFixed(2)} €`;
-    restantGlobalSpan.textContent = `Restant global : ${globalRestant.toFixed(2)} €`;
+    totalGlobalSpan.textContent = `Total global : ${totalGlobal.toFixed(2)} €`;
+    restantGlobalSpan.textContent = `Restant global : ${restantGlobal.toFixed(2)} €`;
 }
 
-searchInput.addEventListener("input", render);
+searchInput.oninput = render;
