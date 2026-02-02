@@ -30,22 +30,18 @@ function parsePrix(v) {
 // ========================
 // MENU CHANTIERS
 // ========================
-
-// Ouvrir / fermer menu chantier
 chantierBtn.onclick = (e) => {
     e.stopPropagation();
     chantierMenu.style.display =
         chantierMenu.style.display === "block" ? "none" : "block";
 };
 
-// Fermer le menu si clic ailleurs
 document.addEventListener("click", (e) => {
     if (!chantierMenu.contains(e.target) && e.target !== chantierBtn) {
         chantierMenu.style.display = "none";
     }
 });
 
-// Charger la liste des chantiers
 fetch("data/index.csv")
     .then(r => r.text())
     .then(t => {
@@ -56,7 +52,6 @@ fetch("data/index.csv")
         renderChantiers();
     });
 
-// Affichage du menu chantier
 function renderChantiers() {
     chantierMenu.innerHTML = "";
     chantiers.forEach(c => {
@@ -76,7 +71,6 @@ function renderChantiers() {
     });
 }
 
-// Charger CSV chantier si nécessaire
 function loadCSV(c) {
     if (csvCache[c.fichier]) return;
     fetch("data/" + c.fichier)
@@ -107,7 +101,6 @@ function render() {
         const lignes = csv.trim().split("\n");
         const headers = lignes[0].split(",");
 
-        // En-têtes
         if (!tableHead.innerHTML) {
             const tr = document.createElement("tr");
             headers.forEach(h => tr.appendChild(Object.assign(document.createElement("th"), { textContent: h })));
@@ -131,7 +124,6 @@ function render() {
         });
     });
 
-    // Dessiner un lot
     function drawLot(name, rows, indent = 0) {
         let total = 0;
         let restant = 0;
@@ -170,7 +162,13 @@ function render() {
 
             r.cells.forEach((c, idx) => {
                 const td = document.createElement("td");
-                td.textContent = idx === 0 ? "" : c;
+                
+                // Colonne Prix HT (indice 5) → € après
+                if (idx === 5) {
+                    td.textContent = parsePrix(c).toFixed(2) + " €";
+                } else {
+                    td.textContent = idx === 0 ? "" : c;
+                }
                 trL.appendChild(td);
             });
 
@@ -190,10 +188,8 @@ function render() {
         });
     }
 
-    // Dessiner tous les lots
     Object.keys(lots).forEach(l => drawLot(l, lots[l]));
 
-    // Lot mère Pliages
     if (Object.keys(pliages).length) {
         const all = Object.values(pliages).flat();
         drawLot("Pliages", all);
@@ -202,10 +198,8 @@ function render() {
         }
     }
 
-    // Totaux globaux
     totalGlobalSpan.textContent = `Total global : ${totalGlobal.toFixed(2)} €`;
     restantGlobalSpan.textContent = `Restant global : ${restantGlobal.toFixed(2)} €`;
 }
 
-// Filtrage par recherche
 searchInput.oninput = render;
