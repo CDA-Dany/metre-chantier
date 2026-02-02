@@ -180,8 +180,8 @@ function render() {
             r.cells.forEach((c, idx) => {
                 const td = document.createElement("td");
 
-                // Prix HT = colonne 5 (fixe)
-                if (idx === 5) {
+                // Ajouter € après Prix HT (indice 4) et Total HT (indice 5)
+                if (idx === 4 || idx === 5) {
                     td.textContent = parsePrix(c).toFixed(2) + " €";
                 } else {
                     td.textContent = idx === 0 ? "" : c;
