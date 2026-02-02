@@ -5,15 +5,23 @@
 <title>Suivi Métré</title>
 <link rel="stylesheet" href="style.css">
 </head>
+
 <body>
 
-<input id="searchInput" type="text" placeholder="Recherche par nom...">
+<header class="topbar">
+    <div class="search-container">
+        <input id="searchInput" type="text" placeholder="Recherche par nom…">
+    </div>
 
-<div id="chantierCheckboxes"></div>
+    <div class="chantier-select">
+        <button id="chantierBtn">Chantiers ▾</button>
+        <div id="chantierMenu" class="chantier-menu"></div>
+    </div>
+</header>
 
-<div id="resumeGlobal">
-    <span id="totalGlobalSpan"></span>
-    <span id="restantGlobalSpan"></span>
+<div class="resume">
+    <span id="totalGlobal">Total global : 0 €</span>
+    <span id="restantGlobal">Restant global : 0 €</span>
 </div>
 
 <table id="mainTable">
@@ -24,4 +32,3 @@
 <script src="script.js"></script>
 </body>
 </html>
-
