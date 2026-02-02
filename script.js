@@ -16,6 +16,23 @@ let chantiersActifs = new Set();
 let lotsOuverts = {};
 
 // ========================
+// Tooltip chantier
+// ========================
+const tooltip = document.createElement("div");
+tooltip.style.cssText = `
+    position: fixed;
+    background: #222;
+    color: #fff;
+    padding: 6px 10px;
+    border-radius: 6px;
+    font-size: 12px;
+    pointer-events: none;
+    display: none;
+    z-index: 9999;
+`;
+document.body.appendChild(tooltip);
+
+// ========================
 // Fonction utilitaire
 // ========================
 function parsePrix(v) {
@@ -169,6 +186,23 @@ function render() {
                 } else {
                     td.textContent = idx === 0 ? "" : c;
                 }
+
+                // Tooltip sur colonne Nom (indice 1)
+                if (idx === 1) {
+                    td.style.cursor = "help";
+                    td.addEventListener("mouseenter", () => {
+                        tooltip.textContent = r.c.nom;
+                        tooltip.style.display = "block";
+                    });
+                    td.addEventListener("mousemove", e => {
+                        tooltip.style.left = e.clientX + 12 + "px";
+                        tooltip.style.top = e.clientY + 12 + "px";
+                    });
+                    td.addEventListener("mouseleave", () => {
+                        tooltip.style.display = "none";
+                    });
+                }
+
                 trL.appendChild(td);
             });
 
@@ -199,7 +233,8 @@ function render() {
     }
 
     totalGlobalSpan.textContent = `Total global : ${totalGlobal.toFixed(2)} €`;
-    restantGlobalSpan.textContent = `Restant global : ${restantGlobal.toFixed(2)} €`;
+    restantGlobalSpan.textContent = `Restant global : ${restant.toFixed(2)} €`;
 }
 
+// Recherche en temps réel
 searchInput.oninput = render;
