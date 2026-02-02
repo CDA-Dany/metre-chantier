@@ -133,3 +133,9 @@ tr.ligne.fait {
     margin-right: 6px;
     font-weight: bold;
 }
+
+tr.ligne:hover {
+    background-color: #ffffcc; /* surbrillance jaune clair */
+    cursor: default;
+}
+
