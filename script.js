@@ -146,7 +146,7 @@ function render() {
         let restant = 0;
 
         rows.forEach(r => {
-            const p = parsePrix(r.cells[5]); // colonne Total HT pour résumé
+            const p = parsePrix(r.cells[5]);
             total += p;
             if (!r.etats[r.i]) restant += p;
         });
@@ -222,18 +222,19 @@ function render() {
         });
     }
 
+    // Affichage des lots normaux
     Object.keys(lots).forEach(l => drawLot(l, lots[l]));
 
+    // Lot mère Pliages + sous-lots
     if (Object.keys(pliages).length) {
-        const all = Object.values(pliages).flat();
-        drawLot("Pliages", all);
+        drawLot("Pliages", []); // lot mère vide
         if (lotsOuverts["Pliages"]) {
-            Object.keys(pliages).forEach(l => drawLot(l, pliages[l], 30));
+            Object.keys(pliages).forEach(l => drawLot(l, pliages[l], 30)); // sous-lots indentés
         }
     }
 
     totalGlobalSpan.textContent = `Total global : ${totalGlobal.toFixed(2)} €`;
-    restantGlobalSpan.textContent = `Restant global : ${restant.toFixed(2)} €`;
+    restantGlobalSpan.textContent = `Restant global : ${restantGlobal.toFixed(2)} €`;
 }
 
 // Recherche en temps réel
