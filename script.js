@@ -102,7 +102,6 @@ function render() {
     const lots = {};
     const pliages = {};
 
-    // =====================
     chantiersActifs.forEach(c => {
         const txt = csvCache[c.fichier];
         if (!txt) return;
@@ -134,8 +133,7 @@ function render() {
         });
     });
 
-    // =====================
-    function afficherLot(nomLot, data, indent = 0) {
+    function creerLot(nomLot, data, indent = 0) {
         let total = 0;
         let restant = 0;
 
@@ -148,6 +146,9 @@ function render() {
         globalTotal += total;
         globalRestant += restant;
 
+        const ouvert = !!etatLots[nomLot];
+        const fleche = ouvert ? "▾" : "▸";
+
         const trLot = document.createElement("tr");
         trLot.style.background = "#f2f2f2";
         trLot.style.cursor = "pointer";
@@ -156,7 +157,7 @@ function render() {
         td.colSpan = 7;
         td.style.paddingLeft = indent + "px";
         td.innerHTML = `
-            <strong>${nomLot}</strong>
+            ${fleche} <strong>${nomLot}</strong>
             <span style="float:right">${total.toFixed(2)} € | ${restant.toFixed(2)} €</span>
         `;
         trLot.appendChild(td);
@@ -166,7 +167,7 @@ function render() {
 
         data.forEach(d => {
             const tr = document.createElement("tr");
-            tr.style.display = etatLots[nomLot] ? "" : "none";
+            tr.style.display = ouvert ? "" : "none";
 
             d.cells.forEach((cell, idx) => {
                 const td = document.createElement("td");
@@ -205,24 +206,26 @@ function render() {
 
         trLot.addEventListener("click", () => {
             etatLots[nomLot] = !etatLots[nomLot];
-            lignes.forEach(tr => tr.style.display = etatLots[nomLot] ? "" : "none");
+            render();
         });
     }
 
-    // =====================
-    // Lots normaux
-    Object.keys(lots).forEach(lot => afficherLot(lot, lots[lot]));
+    Object.keys(lots).forEach(lot => creerLot(lot, lots[lot]));
 
     // =====================
     // LOT MÈRE : PLIAGES
+    // =====================
     if (Object.keys(pliages).length) {
+        const ouvert = !!etatLots["Pliages"];
+        const fleche = ouvert ? "▾" : "▸";
+
         const tr = document.createElement("tr");
-        tr.style.background = "#ddd";
+        tr.style.background = "#f2f2f2";
         tr.style.cursor = "pointer";
 
         const td = document.createElement("td");
         td.colSpan = 7;
-        td.innerHTML = "<strong>Pliages</strong>";
+        td.innerHTML = `${fleche} <strong>Pliages</strong>`;
         tr.appendChild(td);
         tbody.appendChild(tr);
 
@@ -231,10 +234,9 @@ function render() {
             render();
         });
 
-        // ⬇️ LES SOUS-LOTS NE SONT CRÉÉS QUE SI OUVERT
-        if (etatLots["Pliages"]) {
+        if (ouvert) {
             Object.keys(pliages).forEach(lot =>
-                afficherLot(lot, pliages[lot], 30)
+                creerLot(lot, pliages[lot], 30)
             );
         }
     }
