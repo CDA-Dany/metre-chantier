@@ -31,7 +31,7 @@ document.body.appendChild(tooltip);
 let chantiers = [];
 let csvCache = {};
 let chantiersActifs = new Set();
-let etatLots = {};
+let etatLots = {}; // ouverts / fermés
 
 // =====================
 function parsePrix(v) {
@@ -59,12 +59,16 @@ fetch("data/index.csv")
 // =====================
 function afficherChantiers() {
     chantierBox.innerHTML = "";
+
     chantiers.forEach(c => {
         const label = document.createElement("label");
         label.style.display = "block";
+        label.style.cursor = "default";
 
         const cb = document.createElement("input");
         cb.type = "checkbox";
+
+        // 👉 SEULE la checkbox agit
         cb.addEventListener("change", () => {
             cb.checked ? chantiersActifs.add(c) : chantiersActifs.delete(c);
             chargerCSV(c);
@@ -153,24 +157,35 @@ function render() {
         trLot.style.background = "#f2f2f2";
         trLot.style.cursor = "pointer";
 
-        const td = document.createElement("td");
-        td.colSpan = 7;
-        td.style.paddingLeft = indent + "px";
-        td.innerHTML = `
+        const tdLot = document.createElement("td");
+        tdLot.colSpan = 7;
+        tdLot.style.paddingLeft = indent + "px";
+        tdLot.innerHTML = `
             ${fleche} <strong>${nomLot}</strong>
             <span style="float:right">${total.toFixed(2)} € | ${restant.toFixed(2)} €</span>
         `;
-        trLot.appendChild(td);
+        trLot.appendChild(tdLot);
         tbody.appendChild(trLot);
+
+        trLot.addEventListener("click", () => {
+            etatLots[nomLot] = !etatLots[nomLot];
+            render();
+        });
 
         data.forEach(d => {
             const tr = document.createElement("tr");
             tr.style.display = ouvert ? "" : "none";
 
+            if (d.etats[d.i]) {
+                tr.style.textDecoration = "line-through";
+                tr.style.opacity = "0.6";
+            }
+
             d.cells.forEach((cell, idx) => {
                 const td = document.createElement("td");
                 td.textContent = idx === 0 ? "" : cell;
 
+                // Tooltip sur NOM (colonne 2)
                 if (idx === 1) {
                     td.style.cursor = "help";
                     td.addEventListener("mouseenter", () => {
@@ -191,41 +206,33 @@ function render() {
             const cb = document.createElement("input");
             cb.type = "checkbox";
             cb.checked = !!d.etats[d.i];
+
             cb.addEventListener("change", () => {
                 d.etats[d.i] = cb.checked;
                 localStorage.setItem("etat-" + d.c.fichier, JSON.stringify(d.etats));
                 render();
             });
+
             tdCheck.appendChild(cb);
             tr.appendChild(tdCheck);
 
             tbody.appendChild(tr);
         });
-
-        trLot.addEventListener("click", () => {
-            etatLots[nomLot] = !etatLots[nomLot];
-            render();
-        });
-
-        return { total, restant };
     }
 
-    // Lots classiques
     Object.keys(lots).forEach(lot => creerLot(lot, lots[lot]));
 
     // =====================
-    // LOT MÈRE : PLIAGES (avec totaux)
+    // LOT MÈRE : PLIAGES
     // =====================
     if (Object.keys(pliages).length) {
-        let totalPliages = 0;
-        let restantPliages = 0;
+        let totalP = 0;
+        let restantP = 0;
 
-        Object.keys(pliages).forEach(lot => {
-            pliages[lot].forEach(d => {
-                const p = parsePrix(d.cells[5]);
-                totalPliages += p;
-                if (!d.etats[d.i]) restantPliages += p;
-            });
+        Object.values(pliages).flat().forEach(d => {
+            const p = parsePrix(d.cells[5]);
+            totalP += p;
+            if (!d.etats[d.i]) restantP += p;
         });
 
         const ouvert = !!etatLots["Pliages"];
@@ -239,7 +246,7 @@ function render() {
         td.colSpan = 7;
         td.innerHTML = `
             ${fleche} <strong>Pliages</strong>
-            <span style="float:right">${totalPliages.toFixed(2)} € | ${restantPliages.toFixed(2)} €</span>
+            <span style="float:right">${totalP.toFixed(2)} € | ${restantP.toFixed(2)} €</span>
         `;
         tr.appendChild(td);
         tbody.appendChild(tr);
