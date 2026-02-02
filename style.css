@@ -88,12 +88,12 @@ thead {
 th, td {
     padding: 10px;
     border-bottom: 1px solid #e2e2e2;
-    text-align: left; /* tout le texte à gauche par défaut */
+    text-align: left;
 }
 
 th:last-child,
 td:last-child {
-    text-align: center; /* seulement la colonne checkbox ou montants centraux */
+    text-align: center;
 }
 
 tr.lot {
@@ -103,11 +103,20 @@ tr.lot {
 }
 
 tr.lot td {
-    text-align: left; /* forcer le nom du lot à gauche */
+    text-align: left;
+    position: relative;
 }
 
-tr.lot td span {
-    float: right; /* totaux restent à droite */
+tr.lot td span.toggle {
+    display: inline-block;
+    width: 18px;
+    text-align: center;
+    margin-right: 6px;
+    font-weight: bold;
+}
+
+tr.lot td span.totaux {
+    float: right;
 }
 
 tr.sous-lot {
