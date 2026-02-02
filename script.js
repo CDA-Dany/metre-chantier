@@ -2,8 +2,7 @@
 // Sélections HTML
 // =====================
 const searchInput = document.getElementById("searchInput");
-const chantierList = document.getElementById("chantierCheckboxes");
-
+const chantierBox = document.getElementById("chantierCheckboxes");
 const table = document.getElementById("mainTable");
 const thead = table.querySelector("thead");
 const tbody = table.querySelector("tbody");
@@ -15,34 +14,29 @@ const restantGlobalSpan = document.getElementById("restantGlobalSpan");
 // Tooltip chantier
 // =====================
 const tooltip = document.createElement("div");
-tooltip.style.position = "fixed";
-tooltip.style.pointerEvents = "none";
-tooltip.style.background = "#222";
-tooltip.style.color = "#fff";
-tooltip.style.padding = "6px 10px";
-tooltip.style.borderRadius = "6px";
-tooltip.style.fontSize = "12px";
-tooltip.style.whiteSpace = "nowrap";
-tooltip.style.zIndex = "9999";
-tooltip.style.display = "none";
+tooltip.style.cssText = `
+    position:fixed;
+    background:#222;
+    color:#fff;
+    padding:6px 10px;
+    border-radius:6px;
+    font-size:12px;
+    pointer-events:none;
+    display:none;
+    z-index:9999;
+`;
 document.body.appendChild(tooltip);
 
-// =====================
-// Données globales
 // =====================
 let chantiers = [];
 let csvCache = {};
 let chantiersActifs = new Set();
-let lotsOuverts = {};
-let sousLotsOuverts = {};
+let etatLots = {}; // ouvert / fermé
 
 // =====================
-// Utils
-// =====================
-function parsePrix(val) {
-    if (!val) return 0;
+function parsePrix(v) {
     return parseFloat(
-        val.toString()
+        (v || "0")
             .replace("€", "")
             .replace(/\s/g, "")
             .replace(",", ".")
@@ -53,29 +47,24 @@ function parsePrix(val) {
 // Charger index.csv
 // =====================
 fetch("data/index.csv")
-    .then(res => res.text())
-    .then(text => {
-        const lignes = text.trim().split("\n").slice(1);
-        lignes.forEach(ligne => {
-            const [nom, fichier] = ligne.split(",");
+    .then(r => r.text())
+    .then(t => {
+        t.trim().split("\n").slice(1).forEach(l => {
+            const [nom, fichier] = l.split(",");
             chantiers.push({ nom: nom.trim(), fichier: fichier.trim() });
         });
-        afficherCheckboxes();
+        afficherChantiers();
     });
 
 // =====================
-// Checkboxes chantiers
-// =====================
-function afficherCheckboxes() {
-    chantierList.innerHTML = "";
-
+function afficherChantiers() {
+    chantierBox.innerHTML = "";
     chantiers.forEach(c => {
         const label = document.createElement("label");
         label.style.display = "block";
 
         const cb = document.createElement("input");
         cb.type = "checkbox";
-
         cb.addEventListener("change", () => {
             cb.checked ? chantiersActifs.add(c) : chantiersActifs.delete(c);
             chargerCSV(c);
@@ -84,25 +73,23 @@ function afficherCheckboxes() {
 
         label.appendChild(cb);
         label.append(" " + c.nom);
-        chantierList.appendChild(label);
+        chantierBox.appendChild(label);
     });
 }
 
 // =====================
-// Charger CSV chantier
-// =====================
-function chargerCSV(chantier) {
-    if (csvCache[chantier.fichier]) return;
-    fetch("data/" + chantier.fichier)
-        .then(res => res.text())
-        .then(text => {
-            csvCache[chantier.fichier] = text;
+function chargerCSV(c) {
+    if (csvCache[c.fichier]) return;
+    fetch("data/" + c.fichier)
+        .then(r => r.text())
+        .then(t => {
+            csvCache[c.fichier] = t;
             render();
         });
 }
 
 // =====================
-// RENDER GLOBAL
+// RENDER
 // =====================
 function render() {
     thead.innerHTML = "";
@@ -110,93 +97,84 @@ function render() {
 
     let globalTotal = 0;
     let globalRestant = 0;
-    let headersDone = false;
+    let headerDone = false;
 
-    const groupes = {};
-    const groupesPliages = {};
+    const lots = {};
+    const pliages = {};
 
-    chantiersActifs.forEach(chantier => {
-        const text = csvCache[chantier.fichier];
-        if (!text) return;
+    // =====================
+    chantiersActifs.forEach(c => {
+        const txt = csvCache[c.fichier];
+        if (!txt) return;
 
-        const lignes = text.trim().split("\n");
+        const lignes = txt.trim().split("\n");
         const headers = lignes[0].split(",");
 
-        if (!headersDone) {
+        if (!headerDone) {
             const tr = document.createElement("tr");
-            headers.forEach(h => {
-                const th = document.createElement("th");
-                th.textContent = h;
-                tr.appendChild(th);
-            });
-            tr.appendChild(document.createElement("th")).textContent = "Fait";
+            headers.forEach(h => tr.appendChild(Object.assign(document.createElement("th"), { textContent: h })));
+            tr.appendChild(Object.assign(document.createElement("th"), { textContent: "Fait" }));
             thead.appendChild(tr);
-            headersDone = true;
+            headerDone = true;
         }
 
-        const etatCases =
-            JSON.parse(localStorage.getItem("etat-" + chantier.fichier)) || {};
+        const etats = JSON.parse(localStorage.getItem("etat-" + c.fichier)) || {};
 
-        lignes.slice(1).forEach((ligne, index) => {
-            const cells = ligne.split(",");
+        lignes.slice(1).forEach((l, i) => {
+            const cells = l.split(",");
             const lot = cells[0]?.trim();
             const nom = cells[1]?.toLowerCase() || "";
 
             if (!lot || lot === "-" || lot.includes("___")) return;
             if (searchInput.value && !nom.includes(searchInput.value.toLowerCase())) return;
 
-            const cible = lot.toLowerCase().includes("pliage")
-                ? groupesPliages
-                : groupes;
-
-            if (!cible[lot]) cible[lot] = [];
-            cible[lot].push({
-                cells,
-                index,
-                chantierNom: chantier.nom,
-                fichier: chantier.fichier,
-                etatCases
-            });
+            const cible = lot.toLowerCase().includes("pliage") ? pliages : lots;
+            cible[lot] ??= [];
+            cible[lot].push({ cells, i, c, etats });
         });
     });
 
-    // ===== AFFICHAGE NORMAL =====
-    function afficherLot(lot, lignesLotData) {
-        let total = 0, restant = 0;
+    // =====================
+    function afficherLot(nomLot, data, indent = 0) {
+        let total = 0;
+        let restant = 0;
 
-        lignesLotData.forEach(l => {
-            const p = parsePrix(l.cells[5]);
+        data.forEach(d => {
+            const p = parsePrix(d.cells[5]);
             total += p;
-            if (!l.etatCases[l.index]) restant += p;
+            if (!d.etats[d.i]) restant += p;
         });
 
         globalTotal += total;
         globalRestant += restant;
 
         const trLot = document.createElement("tr");
-        trLot.style.background = "#f0f0f0";
+        trLot.style.background = "#f2f2f2";
         trLot.style.cursor = "pointer";
 
-        const tdLot = document.createElement("td");
-        tdLot.colSpan = 7;
-        tdLot.innerHTML = `<strong>${lot}</strong>
-            <span style="float:right">Total : ${total.toFixed(2)} € | Restant : ${restant.toFixed(2)} €</span>`;
-        trLot.appendChild(tdLot);
+        const td = document.createElement("td");
+        td.colSpan = 7;
+        td.style.paddingLeft = indent + "px";
+        td.innerHTML = `
+            <strong>${nomLot}</strong>
+            <span style="float:right">${total.toFixed(2)} € | ${restant.toFixed(2)} €</span>
+        `;
+        trLot.appendChild(td);
         tbody.appendChild(trLot);
 
         const lignes = [];
 
-        lignesLotData.forEach(item => {
+        data.forEach(d => {
             const tr = document.createElement("tr");
-            tr.style.display = "none";
+            tr.style.display = etatLots[nomLot] ? "" : "none";
 
-            item.cells.forEach((cell, idx) => {
+            d.cells.forEach((cell, idx) => {
                 const td = document.createElement("td");
                 td.textContent = idx === 0 ? "" : cell;
 
                 if (idx === 1) {
                     td.addEventListener("mouseenter", () => {
-                        tooltip.textContent = item.chantierNom;
+                        tooltip.textContent = d.c.nom;
                         tooltip.style.display = "block";
                     });
                     td.addEventListener("mousemove", e => {
@@ -212,14 +190,12 @@ function render() {
             const tdCheck = document.createElement("td");
             const cb = document.createElement("input");
             cb.type = "checkbox";
-            cb.checked = !!item.etatCases[item.index];
-
+            cb.checked = !!d.etats[d.i];
             cb.addEventListener("change", () => {
-                item.etatCases[item.index] = cb.checked;
-                localStorage.setItem("etat-" + item.fichier, JSON.stringify(item.etatCases));
+                d.etats[d.i] = cb.checked;
+                localStorage.setItem("etat-" + d.c.fichier, JSON.stringify(d.etats));
                 render();
             });
-
             tdCheck.appendChild(cb);
             tr.appendChild(tdCheck);
 
@@ -227,42 +203,40 @@ function render() {
             lignes.push(tr);
         });
 
-        if (lotsOuverts[lot]) lignes.forEach(tr => tr.style.display = "");
-
         trLot.addEventListener("click", () => {
-            const open = lignes[0]?.style.display === "none";
-            lotsOuverts[lot] = open;
-            lignes.forEach(tr => tr.style.display = open ? "" : "none");
+            etatLots[nomLot] = !etatLots[nomLot];
+            lignes.forEach(tr => tr.style.display = etatLots[nomLot] ? "" : "none");
         });
     }
 
-    Object.keys(groupes).forEach(lot => afficherLot(lot, groupes[lot]));
+    // =====================
+    // Lots normaux
+    Object.keys(lots).forEach(lot => afficherLot(lot, lots[lot]));
 
-    // ===== LOT MÈRE PLIAGES =====
-    if (Object.keys(groupesPliages).length) {
-        const trMere = document.createElement("tr");
-        trMere.style.background = "#ddd";
-        trMere.style.cursor = "pointer";
+    // =====================
+    // LOT MÈRE : PLIAGES
+    if (Object.keys(pliages).length) {
+        const tr = document.createElement("tr");
+        tr.style.background = "#ddd";
+        tr.style.cursor = "pointer";
 
-        const tdMere = document.createElement("td");
-        tdMere.colSpan = 7;
-        tdMere.innerHTML = `<strong>Pliages</strong>`;
-        trMere.appendChild(tdMere);
-        tbody.appendChild(trMere);
+        const td = document.createElement("td");
+        td.colSpan = 7;
+        td.innerHTML = "<strong>Pliages</strong>";
+        tr.appendChild(td);
+        tbody.appendChild(tr);
 
-        const sousLots = [];
-
-        Object.keys(groupesPliages).forEach(sousLot => {
-            afficherLot(sousLot, groupesPliages[sousLot]);
-            sousLots.push(sousLot);
-        });
-
-        trMere.addEventListener("click", () => {
-            sousLots.forEach(lot => {
-                lotsOuverts[lot] = !lotsOuverts[lot];
-            });
+        tr.addEventListener("click", () => {
+            etatLots["Pliages"] = !etatLots["Pliages"];
             render();
         });
+
+        // ⬇️ LES SOUS-LOTS NE SONT CRÉÉS QUE SI OUVERT
+        if (etatLots["Pliages"]) {
+            Object.keys(pliages).forEach(lot =>
+                afficherLot(lot, pliages[lot], 30)
+            );
+        }
     }
 
     totalGlobalSpan.textContent = `Total global : ${globalTotal.toFixed(2)} €`;
