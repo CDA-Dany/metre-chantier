@@ -31,7 +31,7 @@ document.body.appendChild(tooltip);
 let chantiers = [];
 let csvCache = {};
 let chantiersActifs = new Set();
-let etatLots = {}; // ouvert / fermé
+let etatLots = {};
 
 // =====================
 function parsePrix(v) {
@@ -163,8 +163,6 @@ function render() {
         trLot.appendChild(td);
         tbody.appendChild(trLot);
 
-        const lignes = [];
-
         data.forEach(d => {
             const tr = document.createElement("tr");
             tr.style.display = ouvert ? "" : "none";
@@ -174,6 +172,7 @@ function render() {
                 td.textContent = idx === 0 ? "" : cell;
 
                 if (idx === 1) {
+                    td.style.cursor = "help";
                     td.addEventListener("mouseenter", () => {
                         tooltip.textContent = d.c.nom;
                         tooltip.style.display = "block";
@@ -201,21 +200,34 @@ function render() {
             tr.appendChild(tdCheck);
 
             tbody.appendChild(tr);
-            lignes.push(tr);
         });
 
         trLot.addEventListener("click", () => {
             etatLots[nomLot] = !etatLots[nomLot];
             render();
         });
+
+        return { total, restant };
     }
 
+    // Lots classiques
     Object.keys(lots).forEach(lot => creerLot(lot, lots[lot]));
 
     // =====================
-    // LOT MÈRE : PLIAGES
+    // LOT MÈRE : PLIAGES (avec totaux)
     // =====================
     if (Object.keys(pliages).length) {
+        let totalPliages = 0;
+        let restantPliages = 0;
+
+        Object.keys(pliages).forEach(lot => {
+            pliages[lot].forEach(d => {
+                const p = parsePrix(d.cells[5]);
+                totalPliages += p;
+                if (!d.etats[d.i]) restantPliages += p;
+            });
+        });
+
         const ouvert = !!etatLots["Pliages"];
         const fleche = ouvert ? "▾" : "▸";
 
@@ -225,7 +237,10 @@ function render() {
 
         const td = document.createElement("td");
         td.colSpan = 7;
-        td.innerHTML = `${fleche} <strong>Pliages</strong>`;
+        td.innerHTML = `
+            ${fleche} <strong>Pliages</strong>
+            <span style="float:right">${totalPliages.toFixed(2)} € | ${restantPliages.toFixed(2)} €</span>
+        `;
         tr.appendChild(td);
         tbody.appendChild(tr);
 
