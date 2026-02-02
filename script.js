@@ -118,9 +118,6 @@ function render() {
         const lignes = csv.trim().split("\n");
         const headers = lignes[0].split(",");
 
-        // Identifier les colonnes contenant des montants
-        const colonnesPrix = headers.map(h => /prix|ht/i.test(h));
-
         if (!tableHead.innerHTML) {
             const tr = document.createElement("tr");
             headers.forEach(h => tr.appendChild(Object.assign(document.createElement("th"), { textContent: h })));
@@ -149,7 +146,7 @@ function render() {
         let restant = 0;
 
         rows.forEach(r => {
-            const p = parsePrix(r.cells[5]); // total HT du lot pour le résumé
+            const p = parsePrix(r.cells[5]); // colonne Total HT pour résumé
             total += p;
             if (!r.etats[r.i]) restant += p;
         });
@@ -183,14 +180,14 @@ function render() {
             r.cells.forEach((c, idx) => {
                 const td = document.createElement("td");
 
-                // Mettre € après si c’est une colonne montant
-                if (colonnesPrix[idx]) {
+                // Prix HT = colonne 5 (fixe)
+                if (idx === 5) {
                     td.textContent = parsePrix(c).toFixed(2) + " €";
                 } else {
                     td.textContent = idx === 0 ? "" : c;
                 }
 
-                // Tooltip sur colonne Nom (indice 1)
+                // Tooltip chantier sur colonne Nom (indice 1)
                 if (idx === 1) {
                     td.style.cursor = "help";
                     td.addEventListener("mouseenter", () => {
