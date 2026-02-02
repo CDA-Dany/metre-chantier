@@ -161,7 +161,11 @@ function render() {
             <td colspan="7" style="padding-left:${indent}px">
                 <span class="toggle">${open ? "▾" : "▸"}</span>
                 ${name}
-                <span class="totaux">${total.toFixed(2)} € | ${restant.toFixed(2)} €</span>
+                <span class="totaux">
+                    <span class="total-gris">${total.toFixed(2)} €</span> | 
+                    <span class="restant">${restant.toFixed(2)} €</span>
+                </span>
+
             </td>
         `;
         tr.onclick = () => {
@@ -239,3 +243,4 @@ function render() {
 
 // Recherche en temps réel
 searchInput.oninput = render;
+
