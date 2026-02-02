@@ -118,6 +118,9 @@ function render() {
         const lignes = csv.trim().split("\n");
         const headers = lignes[0].split(",");
 
+        // Identifier les colonnes contenant des montants
+        const colonnesPrix = headers.map(h => /prix|ht/i.test(h));
+
         if (!tableHead.innerHTML) {
             const tr = document.createElement("tr");
             headers.forEach(h => tr.appendChild(Object.assign(document.createElement("th"), { textContent: h })));
@@ -146,7 +149,7 @@ function render() {
         let restant = 0;
 
         rows.forEach(r => {
-            const p = parsePrix(r.cells[5]);
+            const p = parsePrix(r.cells[5]); // total HT du lot pour le résumé
             total += p;
             if (!r.etats[r.i]) restant += p;
         });
@@ -179,9 +182,9 @@ function render() {
 
             r.cells.forEach((c, idx) => {
                 const td = document.createElement("td");
-                
-                // Colonne Prix HT (indice 5) → € après
-                if (idx === 5) {
+
+                // Mettre € après si c’est une colonne montant
+                if (colonnesPrix[idx]) {
                     td.textContent = parsePrix(c).toFixed(2) + " €";
                 } else {
                     td.textContent = idx === 0 ? "" : c;
