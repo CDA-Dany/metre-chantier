@@ -88,18 +88,26 @@ thead {
 th, td {
     padding: 10px;
     border-bottom: 1px solid #e2e2e2;
-    text-align: left;
+    text-align: left; /* tout le texte à gauche par défaut */
 }
 
 th:last-child,
 td:last-child {
-    text-align: center;
+    text-align: center; /* seulement la colonne checkbox ou montants centraux */
 }
 
 tr.lot {
     background: #f1f3f5;
     font-weight: 600;
     cursor: pointer;
+}
+
+tr.lot td {
+    text-align: left; /* forcer le nom du lot à gauche */
+}
+
+tr.lot td span {
+    float: right; /* totaux restent à droite */
 }
 
 tr.sous-lot {
