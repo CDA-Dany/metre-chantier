@@ -9,6 +9,7 @@ const restantGlobalSpan = document.getElementById("restantGlobal");
 
 const chantierBtn = document.getElementById("chantierBtn");
 const chantierMenu = document.getElementById("chantierMenu");
+const toggleFait = document.getElementById("toggleFait");
 
 let chantiers = [];
 let csvCache = {};
@@ -60,6 +61,11 @@ document.addEventListener("click", e => {
     }
 });
 
+toggleFait.onchange = render;
+
+// ========================
+// Chargement index
+// ========================
 fetch("data/index.csv")
     .then(r => r.text())
     .then(t => {
@@ -100,7 +106,7 @@ function loadCSV(c) {
 }
 
 // ========================
-// TOOLTIP SÉLECTION
+// Tooltip sélection
 // ========================
 function updateSelectionTooltip(e) {
     if (lignesSelectionnees.size === 0) {
@@ -215,6 +221,10 @@ function render() {
         if (!open) return;
 
         rows.forEach(r => {
+
+            // 🔥 FILTRE ON / OFF
+            if (toggleFait.checked && r.etats[r.i]) return;
+
             const trL = document.createElement("tr");
             trL.className = "ligne";
             if (r.etats[r.i]) trL.classList.add("fait");
@@ -236,8 +246,12 @@ function render() {
 
             r.cells.forEach((c, idx) => {
                 const td = document.createElement("td");
-                if (idx === 4 || idx === 5) td.textContent = parsePrix(c).toFixed(2) + " €";
-                else td.textContent = idx === 0 ? "" : c;
+
+                if (idx === 4 || idx === 5) {
+                    td.textContent = parsePrix(c).toFixed(2) + " €";
+                } else {
+                    td.textContent = idx === 0 ? "" : c;
+                }
 
                 if (idx === 1) {
                     td.style.cursor = "help";
