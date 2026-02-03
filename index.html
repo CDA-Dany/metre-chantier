@@ -9,22 +9,24 @@
 <body>
 
 <header class="topbar">
-        <div class="search-container">
-            <input id="searchInput" type="text" placeholder="Recherche par nom…">
-        
-            <!-- Case "Masquer les lignes faites" sous l'input -->
-            <label class="fait-option">
-                <input type="checkbox" id="toggleFait">
-                Masquer les lignes faites
-            </label>
-        </div>
+    <div class="search-container">
+        <input id="searchInput" type="text" placeholder="Recherche par nom…">
+    </div>
 
+    <!-- Case "Masquer les lignes faites" dans sa propre div -->
+    <div class="checkbox-container">
+        <label class="fait-option">
+            <input type="checkbox" id="toggleFait">
+            Masquer les lignes faites
+        </label>
+    </div>
 
     <div class="chantier-select">
         <button id="chantierBtn">Chantiers ▾</button>
         <div id="chantierMenu" class="chantier-menu"></div>
     </div>
 </header>
+
 
 
 <div class="resume">
@@ -40,5 +42,6 @@
 <script src="script.js"></script>
 </body>
 </html>
+
 
 
