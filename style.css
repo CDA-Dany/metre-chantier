@@ -1,170 +1,115 @@
-* {
-    box-sizing: border-box;
-    font-family: system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
-}
-
+/* =========================
+   Base
+========================= */
 body {
-    margin: 0;
-    background: #f5f6f8;
-    padding: 20px;
+    font-family: Arial, sans-serif;
+    margin: 20px;
+    background: #f6f6f6;
 }
 
-/* ===== TOP BAR ===== */
-.topbar {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 15px;
-}
-
-.search-container input {
-    width: 320px;
-    padding: 10px 14px;
-    border-radius: 8px;
-    border: 1px solid #ccc;
-}
-
-/* ===== CHANTIER MENU ===== */
-.chantier-select {
-    position: relative;
-}
-
-#chantierBtn {
-    padding: 8px 14px;
-    border-radius: 20px;
-    border: none;
-    background: #2e7d5a;
-    color: white;
-    cursor: pointer;
-}
-
-.chantier-menu {
-    display: none;
-    position: absolute;
-    right: 0;
-    top: 40px;
-    background: white;
-    border-radius: 8px;
-    box-shadow: 0 6px 20px rgba(0,0,0,0.15);
-    padding: 10px;
-    min-width: 220px;
-    z-index: 10;
-}
-
-.chantier-menu label {
-    display: flex;
-    gap: 8px;
-    padding: 6px;
-    cursor: pointer;
-}
-
-.chantier-menu label:hover {
-    background: #f0f0f0;
-}
-
-/* ===== RESUME ===== */
-.resume {
-    display: flex;
-    justify-content: flex-end;
-    gap: 25px;
-    margin: 10px 0 15px;
-    font-weight: 600;
-}
-
-/* ===== TABLE ===== */
 table {
     width: 100%;
     border-collapse: collapse;
-    background: white;
-    border-radius: 10px;
-    overflow: hidden;
-}
-
-thead {
-    background: #343a40;
-    color: white;
+    background: #fff;
 }
 
 th, td {
-    padding: 10px;
-    border-bottom: 1px solid #e2e2e2;
+    padding: 6px 8px;
+    border-bottom: 1px solid #ddd;
+    font-size: 13px;
+}
+
+th {
+    background: #eee;
     text-align: left;
-}
-
-th:last-child,
-td:last-child {
-    text-align: center;
-}
-
-tr.lot {
-    background: #f1f3f5;
-    font-weight: 600;
-    cursor: pointer;
-}
-
-tr.lot td {
-    text-align: left;
-    position: relative;
-}
-
-tr.lot td span.toggle {
-    display: inline-block;
-    width: 18px;
-    text-align: center;
-    margin-right: 6px;
-    font-weight: bold;
-}
-
-tr.lot td span.totaux {
-    float: right;
-}
-
-tr.sous-lot {
-    background: #f7f7f7;
-    cursor: pointer;
-}
-
-tr.ligne.fait {
-    text-decoration: line-through;
-    opacity: 0.6;
-}
-
-.toggle {
-    margin-right: 6px;
-    font-weight: bold;
 }
 
 tr.ligne:hover {
-    background-color: #ffffcc; /* surbrillance jaune clair */
-    cursor: default;
+    background: #f0f4ff;
 }
 
-.total-gris {
-    color: #999; /* gris clair */
+tr.ligne.fait {
+    color: #999;
 }
 
-tr.ligne.selection {
-    background: #cfe3ff !important;
+/* =========================
+   Zone haute
+========================= */
+.top-bar {
+    margin-bottom: 10px;
 }
 
-.search-container {
+/* Colonne verticale */
+.search-zone {
     display: flex;
     flex-direction: column;
-    align-items: flex-start;
-    gap: 4px;
+    align-items: flex-start; /* ⬅️ FORCÉ À GAUCHE */
+    gap: 6px;
+    max-width: 320px;
 }
 
-.toggle-fait {
+/* Barre de recherche */
+#searchInput {
+    width: 100%;
+    padding: 6px 8px;
+    font-size: 13px;
+}
+
+/* Ligne options */
+.options-zone {
+    display: flex;
+    justify-content: flex-start;
+}
+
+/* Checkbox + texte */
+.fait-option {
     display: flex;
     align-items: center;
+    gap: 6px;               /* ⬅️ texte proche */
     font-size: 13px;
-    line-height: 1;
     cursor: pointer;
     user-select: none;
 }
 
-.toggle-fait input {
-    margin: 0 6px 0 0;
+.fait-option input {
+    margin: 0;              /* ⬅️ supprime marges chelou */
 }
 
+/* =========================
+   Lots
+========================= */
+tr.lot {
+    background: #ddd;
+    font-weight: bold;
+    cursor: pointer;
+}
 
+tr.lot:hover {
+    background: #ccc;
+}
+
+.toggle {
+    display: inline-block;
+    width: 16px;
+}
+
+.totaux {
+    float: right;
+    font-weight: normal;
+}
+
+.total-gris {
+    color: #777;
+}
+
+.restant {
+    color: #c00;
+}
+
+/* =========================
+   Totaux globaux
+========================= */
+.totaux-globaux {
+    margin-top: 10px;
+    font-weight: bold;
+}
