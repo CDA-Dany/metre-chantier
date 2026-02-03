@@ -65,7 +65,6 @@ toggleFait.addEventListener("change", () => {
     render();
 });
 
-
 // ========================
 // Chargement index
 // ========================
@@ -225,13 +224,14 @@ function render() {
 
         rows.forEach(r => {
 
-            // 🔥 FILTRE ON / OFF
+            // 🔹 FILTRE ON / OFF
             if (toggleFait.checked && r.etats[r.i]) return;
 
             const trL = document.createElement("tr");
             trL.className = "ligne";
             if (r.etats[r.i]) trL.classList.add("fait");
 
+            // Selection Ctrl+clic
             trL.addEventListener("click", e => {
                 if (!e.ctrlKey) return;
                 e.stopPropagation();
@@ -272,10 +272,12 @@ function render() {
                 trL.appendChild(td);
             });
 
+            // ✅ Case à cocher uniquement clique sur la case
             const tdC = document.createElement("td");
             const cb = document.createElement("input");
             cb.type = "checkbox";
             cb.checked = !!r.etats[r.i];
+            cb.addEventListener("click", e => e.stopPropagation()); // empêche propagation vers tr
             cb.onchange = () => {
                 r.etats[r.i] = cb.checked;
                 localStorage.setItem("etat-" + r.c.fichier, JSON.stringify(r.etats));
@@ -325,5 +327,3 @@ function render() {
 }
 
 searchInput.oninput = render;
-
-
