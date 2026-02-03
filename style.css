@@ -14,13 +14,13 @@ body {
     display: flex;
     justify-content: space-between;
     align-items: flex-start; /* important pour que les éléments se positionnent en haut */
-    gap: 20px;               /* espace entre recherche, checkbox, chantier */
-    margin-bottom: 15px;
+    gap: 20px;               /* espace entre recherche et chantier */
+    margin-bottom: 8px;
 }
 
 /* Barre de recherche */
 .search-container {
-    display: block; /* pour que l'input soit sur sa ligne */
+    display: block;
 }
 
 .search-container input {
@@ -28,6 +28,25 @@ body {
     padding: 10px 14px;
     border-radius: 8px;
     border: 1px solid #ccc;
+}
+
+/* ===== FILTRE CASE “Masquer lignes faites” ===== */
+.checkbox-container {
+    margin-bottom: 10px;
+}
+
+.fait-option {
+    display: flex;
+    align-items: center;
+    gap: 6px;      /* texte proche de la case */
+    font-size: 13px;
+    cursor: pointer; 
+    user-select: none; 
+}
+
+.fait-option input {
+    margin: 0;
+    cursor: pointer; /* seul le clic sur la case agit */
 }
 
 /* ===== CHANTIER MENU ===== */
@@ -149,29 +168,8 @@ tr.ligne.selection {
     background: #cfe3ff !important;
 }
 
-/* ===== CHECKBOX AU-DESSUS DU TABLEAU ===== */
-.checkbox-container {
-    margin: 0 0 8px 0;  /* petit espace sous la checkbox */
-}
-
-.fait-option {
-    display: flex;
-    align-items: center;
-    gap: 6px;      /* texte proche de la case */
-    font-size: 13px;
-    cursor: pointer; 
-    user-select: none; 
-}
-
-.fait-option input {
-    margin: 0;
-    cursor: pointer; /* s'assure que seul le clic sur la case agit */
-}
-
-
 /* ===== Totaux gris pour les lots ===== */
 tr.lot td span.total-gris {
     color: #888888;  /* gris pour le total */
     font-weight: 600;
 }
-
