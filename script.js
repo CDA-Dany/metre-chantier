@@ -6,10 +6,10 @@ const tableHead = document.querySelector("thead");
 const tableBody = document.querySelector("tbody");
 const totalGlobalSpan = document.getElementById("totalGlobal");
 const restantGlobalSpan = document.getElementById("restantGlobal");
-const toggleFait = document.getElementById("toggleFait");
 
 const chantierBtn = document.getElementById("chantierBtn");
 const chantierMenu = document.getElementById("chantierMenu");
+const toggleFait = document.getElementById("toggleFait");
 
 let chantiers = [];
 let csvCache = {};
@@ -61,12 +61,10 @@ document.addEventListener("click", e => {
     }
 });
 
-toggleFait.addEventListener("change", () => {
-    render();
-});
+toggleFait.onchange = render;
 
 // ========================
-// Chargement index
+// Chargement index.csv
 // ========================
 fetch("data/index.csv")
     .then(r => r.text())
@@ -108,7 +106,7 @@ function loadCSV(c) {
 }
 
 // ========================
-// Tooltip sélection
+// Tooltip sélection multiple
 // ========================
 function updateSelectionTooltip(e) {
     if (lignesSelectionnees.size === 0) {
@@ -189,6 +187,12 @@ function render() {
     });
 
     function drawLot(name, rows, indent = 0) {
+
+        const toutFait = rows.every(r => r.etats[r.i]);
+
+        // 🔴 MASQUER LE LOT SI TOUT EST FAIT
+        if (toggleFait.checked && toutFait) return;
+
         let total = 0;
         let restant = 0;
 
@@ -209,7 +213,7 @@ function render() {
                 <span class="toggle">${open ? "▾" : "▸"}</span>
                 ${name}
                 <span class="totaux">
-                    <span class="total-gris">${total.toFixed(2)} €</span> | 
+                    <span class="total-gris">${total.toFixed(2)} €</span> |
                     <span class="restant">${restant.toFixed(2)} €</span>
                 </span>
             </td>
@@ -223,15 +227,14 @@ function render() {
         if (!open) return;
 
         rows.forEach(r => {
-            // 🔹 FILTRE ON / OFF
+
             if (toggleFait.checked && r.etats[r.i]) return;
 
             const trL = document.createElement("tr");
             trL.className = "ligne";
             if (r.etats[r.i]) trL.classList.add("fait");
 
-            // Ctrl + clic pour sélection multiple
-            trL.addEventListener("click", e => {
+            trL.onclick = e => {
                 if (!e.ctrlKey) return;
                 e.stopPropagation();
 
@@ -242,10 +245,9 @@ function render() {
                     lignesSelectionnees.add(r);
                     trL.classList.add("selection");
                 }
-            });
+            };
 
-            // Tooltip sélection
-            trL.addEventListener("mousemove", updateSelectionTooltip);
+            trL.onmousemove = updateSelectionTooltip;
 
             r.cells.forEach((c, idx) => {
                 const td = document.createElement("td");
@@ -256,7 +258,6 @@ function render() {
                     td.textContent = idx === 0 ? "" : c;
                 }
 
-                // Tooltip chantier
                 if (idx === 1) {
                     td.style.cursor = "help";
                     td.onmouseenter = () => {
@@ -273,12 +274,10 @@ function render() {
                 trL.appendChild(td);
             });
 
-            // ✅ CASE “FAIT” uniquement clic sur la case
             const tdC = document.createElement("td");
             const cb = document.createElement("input");
             cb.type = "checkbox";
             cb.checked = !!r.etats[r.i];
-            cb.onclick = e => e.stopPropagation(); // empêche que la ligne entière soit cliquable
             cb.onchange = () => {
                 r.etats[r.i] = cb.checked;
                 localStorage.setItem("etat-" + r.c.fichier, JSON.stringify(r.etats));
@@ -293,39 +292,27 @@ function render() {
 
     Object.keys(lots).forEach(l => drawLot(l, lots[l]));
 
-    if (Object.keys(pliages).length) {
-        let totalP = 0, restantP = 0;
-        Object.values(pliages).flat().forEach(r => {
-            const p = parsePrix(r.cells[5]);
-            totalP += p;
-            if (!r.etats[r.i]) restantP += p;
-        });
+if (Object.keys(pliages).length) {
 
-        const openP = !!lotsOuverts["Pliages"];
-        const trP = document.createElement("tr");
-        trP.className = "lot";
-        trP.innerHTML = `
-            <td colspan="7">
-                <span class="toggle">${openP ? "▾" : "▸"}</span>
-                Pliages
-                <span class="totaux">
-                    <span class="total-gris">${totalP.toFixed(2)} €</span> | 
-                    <span class="restant">${restantP.toFixed(2)} €</span>
-                </span>
-            </td>
-        `;
-        trP.onclick = () => {
-            lotsOuverts["Pliages"] = !openP;
-            render();
-        };
-        tableBody.appendChild(trP);
+    const tousSousLotsFaits = Object.values(pliages)
+        .flat()
+        .every(r => r.etats[r.i]);
 
-        if (openP) Object.keys(pliages).forEach(l => drawLot(l, pliages[l], 30));
+    // 🔴 Masquer complètement le lot Pliages si tout est fait
+    if (!(toggleFait.checked && tousSousLotsFaits)) {
+
+        const all = Object.values(pliages).flat();
+        drawLot("Pliages", all);
+
+        if (lotsOuverts["Pliages"]) {
+            Object.keys(pliages).forEach(l => drawLot(l, pliages[l], 30));
+        }
     }
+}
+
 
     totalGlobalSpan.textContent = `Total global : ${totalGlobal.toFixed(2)} €`;
     restantGlobalSpan.textContent = `Restant global : ${restantGlobal.toFixed(2)} €`;
 }
 
-// Recherche en temps réel
 searchInput.oninput = render;
