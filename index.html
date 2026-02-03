@@ -9,28 +9,23 @@
 <body>
 
 <header class="topbar">
-    <!-- Barre de recherche -->
     <div class="search-container">
         <input id="searchInput" type="text" placeholder="Recherche par nom…">
     </div>
 
-    <!-- Case à cocher sous la barre de recherche -->
-    <div class="checkbox-container">
-        <label class="fait-option">
-            <input type="checkbox" id="toggleFait">
-            Masquer les lignes faites
-        </label>
-    </div>
-
-    <!-- Menu chantier -->
     <div class="chantier-select">
         <button id="chantierBtn">Chantiers ▾</button>
         <div id="chantierMenu" class="chantier-menu"></div>
     </div>
 </header>
 
-
-
+<!-- Checkbox "Masquer les lignes faites" au-dessus du tableau -->
+<div class="checkbox-container">
+    <label class="fait-option">
+        <input type="checkbox" id="toggleFait">
+        Masquer les lignes faites
+    </label>
+</div>
 
 <div class="resume">
     <span id="totalGlobal">Total global : 0 €</span>
@@ -42,9 +37,11 @@
     <tbody></tbody>
 </table>
 
+
 <script src="script.js"></script>
 </body>
 </html>
+
 
 
 
