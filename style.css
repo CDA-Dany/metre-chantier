@@ -143,3 +143,7 @@ tr.ligne:hover {
     color: #999; /* gris clair */
 }
 
+tr.ligne.selection {
+    background: #cfe3ff !important;
+}
+
