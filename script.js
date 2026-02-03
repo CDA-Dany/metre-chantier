@@ -6,10 +6,10 @@ const tableHead = document.querySelector("thead");
 const tableBody = document.querySelector("tbody");
 const totalGlobalSpan = document.getElementById("totalGlobal");
 const restantGlobalSpan = document.getElementById("restantGlobal");
+const toggleFait = document.getElementById("toggleFait");
 
 const chantierBtn = document.getElementById("chantierBtn");
 const chantierMenu = document.getElementById("chantierMenu");
-const toggleFait = document.getElementById("toggleFait");
 
 let chantiers = [];
 let csvCache = {};
@@ -223,7 +223,6 @@ function render() {
         if (!open) return;
 
         rows.forEach(r => {
-
             // 🔹 FILTRE ON / OFF
             if (toggleFait.checked && r.etats[r.i]) return;
 
@@ -231,7 +230,7 @@ function render() {
             trL.className = "ligne";
             if (r.etats[r.i]) trL.classList.add("fait");
 
-            // Selection Ctrl+clic
+            // Ctrl + clic pour sélection multiple
             trL.addEventListener("click", e => {
                 if (!e.ctrlKey) return;
                 e.stopPropagation();
@@ -245,6 +244,7 @@ function render() {
                 }
             });
 
+            // Tooltip sélection
             trL.addEventListener("mousemove", updateSelectionTooltip);
 
             r.cells.forEach((c, idx) => {
@@ -256,6 +256,7 @@ function render() {
                     td.textContent = idx === 0 ? "" : c;
                 }
 
+                // Tooltip chantier
                 if (idx === 1) {
                     td.style.cursor = "help";
                     td.onmouseenter = () => {
@@ -272,12 +273,12 @@ function render() {
                 trL.appendChild(td);
             });
 
-            // ✅ Case à cocher uniquement clique sur la case
+            // ✅ CASE “FAIT” uniquement clic sur la case
             const tdC = document.createElement("td");
             const cb = document.createElement("input");
             cb.type = "checkbox";
             cb.checked = !!r.etats[r.i];
-            cb.addEventListener("click", e => e.stopPropagation()); // empêche propagation vers tr
+            cb.onclick = e => e.stopPropagation(); // empêche que la ligne entière soit cliquable
             cb.onchange = () => {
                 r.etats[r.i] = cb.checked;
                 localStorage.setItem("etat-" + r.c.fichier, JSON.stringify(r.etats));
@@ -326,4 +327,5 @@ function render() {
     restantGlobalSpan.textContent = `Restant global : ${restantGlobal.toFixed(2)} €`;
 }
 
+// Recherche en temps réel
 searchInput.oninput = render;
