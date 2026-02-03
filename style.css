@@ -166,3 +166,9 @@ tr.ligne.selection {
     margin: 0;
 }
 
+/* ===== Totaux gris pour les lots ===== */
+tr.lot td span.total-gris {
+    color: #888888;  /* gris pour le total */
+    font-weight: 600;
+}
+
