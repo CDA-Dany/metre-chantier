@@ -147,16 +147,20 @@ tr.ligne.selection {
     background: #cfe3ff !important;
 }
 
-.toggle-fait {
-    margin: 8px 0 15px;
-    font-weight: 500;
+.search-container {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
 }
 
-.toggle-fait label {
+.toggle-fait {
+    font-size: 14px;
     cursor: pointer;
     user-select: none;
 }
 
 .toggle-fait input {
     margin-right: 6px;
+    vertical-align: middle;
 }
+
