@@ -147,3 +147,16 @@ tr.ligne.selection {
     background: #cfe3ff !important;
 }
 
+.toggle-fait {
+    margin: 8px 0 15px;
+    font-weight: 500;
+}
+
+.toggle-fait label {
+    cursor: pointer;
+    user-select: none;
+}
+
+.toggle-fait input {
+    margin-right: 6px;
+}
