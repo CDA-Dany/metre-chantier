@@ -7,11 +7,9 @@ const tableBody = document.querySelector("tbody");
 const totalGlobalSpan = document.getElementById("totalGlobal");
 const restantGlobalSpan = document.getElementById("restantGlobal");
 
-// Checkbox Masquer les lignes faites
-const toggleFait = document.getElementById("toggleFait");
-
 const chantierBtn = document.getElementById("chantierBtn");
 const chantierMenu = document.getElementById("chantierMenu");
+const toggleFait = document.getElementById("toggleFait");
 
 let chantiers = [];
 let csvCache = {};
@@ -20,49 +18,57 @@ let lotsOuverts = {};
 let lignesSelectionnees = new Set();
 
 // ========================
-// Tooltip chantier
+// Tooltips
 // ========================
-const tooltip = document.createElement("div");
-tooltip.style.cssText = `
-    position: fixed;
-    background: #222;
-    color: #fff;
-    padding: 6px 10px;
-    border-radius: 6px;
-    font-size: 12px;
-    pointer-events: none;
-    display: none;
-    z-index: 9999;
-`;
-document.body.appendChild(tooltip);
+const tooltipChantier = document.createElement("div");
+const tooltipSelection = document.createElement("div");
 
-// ========================
-// Fonction utilitaire
+[tooltipChantier, tooltipSelection].forEach(t => {
+    t.style.cssText = `
+        position: fixed;
+        background: #222;
+        color: #fff;
+        padding: 8px 12px;
+        border-radius: 6px;
+        font-size: 12px;
+        pointer-events: none;
+        display: none;
+        z-index: 9999;
+        white-space: nowrap;
+    `;
+    document.body.appendChild(t);
+});
+
 // ========================
 function parsePrix(v) {
     return parseFloat(
-        (v || "0")
-            .replace("€", "")
-            .replace(/\s/g, "")
-            .replace(",", ".")
+        (v || "0").replace("€", "").replace(/\s/g, "").replace(",", ".")
     ) || 0;
 }
 
 // ========================
 // MENU CHANTIERS
 // ========================
-chantierBtn.onclick = (e) => {
+chantierBtn.onclick = e => {
     e.stopPropagation();
     chantierMenu.style.display =
         chantierMenu.style.display === "block" ? "none" : "block";
 };
 
-document.addEventListener("click", (e) => {
+document.addEventListener("click", e => {
     if (!chantierMenu.contains(e.target) && e.target !== chantierBtn) {
         chantierMenu.style.display = "none";
     }
 });
 
+toggleFait.addEventListener("change", () => {
+    render();
+});
+
+
+// ========================
+// Chargement index
+// ========================
 fetch("data/index.csv")
     .then(r => r.text())
     .then(t => {
@@ -80,11 +86,11 @@ function renderChantiers() {
         const cb = document.createElement("input");
         cb.type = "checkbox";
 
-        cb.addEventListener("change", () => {
+        cb.onchange = () => {
             cb.checked ? chantiersActifs.add(c) : chantiersActifs.delete(c);
             loadCSV(c);
             render();
-        });
+        };
 
         label.appendChild(cb);
         label.append(c.nom);
@@ -103,18 +109,49 @@ function loadCSV(c) {
 }
 
 // ========================
-// MASQUER LIGNES FAITES
+// Tooltip sélection
 // ========================
-toggleFait.addEventListener("change", () => {
-    render();
-});
+function updateSelectionTooltip(e) {
+    if (lignesSelectionnees.size === 0) {
+        tooltipSelection.style.display = "none";
+        return;
+    }
+
+    let sommeQte = 0;
+    let sommePrix = 0;
+    let unite = null;
+    let uniteUnique = true;
+
+    lignesSelectionnees.forEach(r => {
+        const qte = parseFloat(r.cells[2].replace(",", ".")) || 0;
+        const u = r.cells[3]?.trim();
+        const prix = parsePrix(r.cells[5]);
+
+        sommeQte += qte;
+        sommePrix += prix;
+
+        if (unite === null) unite = u;
+        else if (unite !== u) uniteUnique = false;
+    });
+
+    tooltipSelection.innerHTML = `
+        <strong>Sélection</strong><br>
+        Quantité : ${uniteUnique ? `${sommeQte} ${unite}` : "?"}<br>
+        Total HT : ${sommePrix.toFixed(2)} €
+    `;
+
+    tooltipSelection.style.left = e.clientX + 15 + "px";
+    tooltipSelection.style.top = e.clientY + 15 + "px";
+    tooltipSelection.style.display = "block";
+}
 
 // ========================
-// RENDER TABLEAU
+// RENDER
 // ========================
 function render() {
     tableHead.innerHTML = "";
     tableBody.innerHTML = "";
+    lignesSelectionnees.clear();
 
     let totalGlobal = 0;
     let restantGlobal = 0;
@@ -187,6 +224,7 @@ function render() {
         if (!open) return;
 
         rows.forEach(r => {
+
             // 🔥 FILTRE ON / OFF
             if (toggleFait.checked && r.etats[r.i]) return;
 
@@ -194,36 +232,6 @@ function render() {
             trL.className = "ligne";
             if (r.etats[r.i]) trL.classList.add("fait");
 
-            r.cells.forEach((c, idx) => {
-                const td = document.createElement("td");
-
-                // Ajouter € après Prix HT (indice 4) et Total HT (indice 5)
-                if (idx === 4 || idx === 5) {
-                    td.textContent = parsePrix(c).toFixed(2) + " €";
-                } else {
-                    td.textContent = idx === 0 ? "" : c;
-                }
-
-                // Tooltip chantier sur colonne Nom (indice 1)
-                if (idx === 1) {
-                    td.style.cursor = "help";
-                    td.addEventListener("mouseenter", () => {
-                        tooltip.textContent = r.c.nom;
-                        tooltip.style.display = "block";
-                    });
-                    td.addEventListener("mousemove", e => {
-                        tooltip.style.left = e.clientX + 12 + "px";
-                        tooltip.style.top = e.clientY + 12 + "px";
-                    });
-                    td.addEventListener("mouseleave", () => {
-                        tooltip.style.display = "none";
-                    });
-                }
-
-                trL.appendChild(td);
-            });
-
-            // 🔥 Sélection multiple Ctrl + clic
             trL.addEventListener("click", e => {
                 if (!e.ctrlKey) return;
                 e.stopPropagation();
@@ -237,15 +245,42 @@ function render() {
                 }
             });
 
+            trL.addEventListener("mousemove", updateSelectionTooltip);
+
+            r.cells.forEach((c, idx) => {
+                const td = document.createElement("td");
+
+                if (idx === 4 || idx === 5) {
+                    td.textContent = parsePrix(c).toFixed(2) + " €";
+                } else {
+                    td.textContent = idx === 0 ? "" : c;
+                }
+
+                if (idx === 1) {
+                    td.style.cursor = "help";
+                    td.onmouseenter = () => {
+                        tooltipChantier.textContent = r.c.nom;
+                        tooltipChantier.style.display = "block";
+                    };
+                    td.onmousemove = e => {
+                        tooltipChantier.style.left = e.clientX + 12 + "px";
+                        tooltipChantier.style.top = e.clientY + 12 + "px";
+                    };
+                    td.onmouseleave = () => tooltipChantier.style.display = "none";
+                }
+
+                trL.appendChild(td);
+            });
+
             const tdC = document.createElement("td");
             const cb = document.createElement("input");
             cb.type = "checkbox";
             cb.checked = !!r.etats[r.i];
-            cb.addEventListener("change", () => {
+            cb.onchange = () => {
                 r.etats[r.i] = cb.checked;
                 localStorage.setItem("etat-" + r.c.fichier, JSON.stringify(r.etats));
                 render();
-            });
+            };
             tdC.appendChild(cb);
             trL.appendChild(tdC);
 
@@ -253,26 +288,21 @@ function render() {
         });
     }
 
-    // Affichage des lots normaux
     Object.keys(lots).forEach(l => drawLot(l, lots[l]));
 
-    // Lot mère Pliages + sous-lots
     if (Object.keys(pliages).length) {
-        let totalP = 0;
-        let restantP = 0;
-        Object.values(pliages).forEach(sous => {
-            sous.forEach(r => {
-                const p = parsePrix(r.cells[5]);
-                totalP += p;
-                if (!r.etats[r.i]) restantP += p;
-            });
+        let totalP = 0, restantP = 0;
+        Object.values(pliages).flat().forEach(r => {
+            const p = parsePrix(r.cells[5]);
+            totalP += p;
+            if (!r.etats[r.i]) restantP += p;
         });
 
         const openP = !!lotsOuverts["Pliages"];
         const trP = document.createElement("tr");
         trP.className = "lot";
         trP.innerHTML = `
-            <td colspan="7" style="padding-left:0px">
+            <td colspan="7">
                 <span class="toggle">${openP ? "▾" : "▸"}</span>
                 Pliages
                 <span class="totaux">
@@ -287,14 +317,13 @@ function render() {
         };
         tableBody.appendChild(trP);
 
-        if (openP) {
-            Object.keys(pliages).forEach(l => drawLot(l, pliages[l], 30));
-        }
+        if (openP) Object.keys(pliages).forEach(l => drawLot(l, pliages[l], 30));
     }
 
     totalGlobalSpan.textContent = `Total global : ${totalGlobal.toFixed(2)} €`;
     restantGlobalSpan.textContent = `Restant global : ${restantGlobal.toFixed(2)} €`;
 }
 
-// Recherche en temps réel
-searchInput.addEventListener("input", render);
+searchInput.oninput = render;
+
+
