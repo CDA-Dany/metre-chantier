@@ -149,15 +149,15 @@ tr.ligne.selection {
     background: #cfe3ff !important;
 }
 
-/* Case à cocher sous la barre de recherche */
+/* ===== CHECKBOX AU-DESSUS DU TABLEAU ===== */
 .checkbox-container {
-    margin-top: 4px;       /* espace sous l'input */
+    margin: 0 0 8px 0;  /* petit espace sous la checkbox */
 }
 
 .fait-option {
     display: flex;
     align-items: center;
-    gap: 6px;       /* texte proche de la case */
+    gap: 6px;      /* texte proche de la case */
     font-size: 13px;
     cursor: pointer;
 }
@@ -165,3 +165,4 @@ tr.ligne.selection {
 .fait-option input {
     margin: 0;
 }
+
