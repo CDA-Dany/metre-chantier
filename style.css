@@ -13,8 +13,14 @@ body {
 .topbar {
     display: flex;
     justify-content: space-between;
-    align-items: center;
+    align-items: flex-start; /* important pour que les éléments se positionnent en haut */
+    gap: 20px;               /* espace entre recherche, checkbox, chantier */
     margin-bottom: 15px;
+}
+
+/* Barre de recherche */
+.search-container {
+    display: block; /* pour que l'input soit sur sa ligne */
 }
 
 .search-container input {
@@ -143,10 +149,9 @@ tr.ligne.selection {
     background: #cfe3ff !important;
 }
 
+/* Case à cocher sous la barre de recherche */
 .checkbox-container {
-    position: relative;   /* pour pouvoir gérer la position si besoin */
-    margin-top: 6px;      /* petit espace sous l'input */
-    width: 100%;          /* prend toute la largeur pour pouvoir placer la case à gauche */
+    margin-top: 4px;       /* espace sous l'input */
 }
 
 .fait-option {
@@ -155,9 +160,6 @@ tr.ligne.selection {
     gap: 6px;       /* texte proche de la case */
     font-size: 13px;
     cursor: pointer;
-    user-select: none;
-    position: relative; /* permet positionnement si besoin */
-    left: 0;           /* force la case à gauche */
 }
 
 .fait-option input {
