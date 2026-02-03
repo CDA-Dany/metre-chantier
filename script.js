@@ -11,6 +11,9 @@ const chantierBtn = document.getElementById("chantierBtn");
 const chantierMenu = document.getElementById("chantierMenu");
 const toggleFait = document.getElementById("toggleFait");
 
+// ========================
+// États globaux
+// ========================
 let chantiers = [];
 let csvCache = {};
 let chantiersActifs = new Set();
@@ -64,7 +67,7 @@ document.addEventListener("click", e => {
 toggleFait.onchange = render;
 
 // ========================
-// Chargement index.csv
+// Chargement index
 // ========================
 fetch("data/index.csv")
     .then(r => r.text())
@@ -106,7 +109,7 @@ function loadCSV(c) {
 }
 
 // ========================
-// Tooltip sélection multiple
+// Tooltip sélection
 // ========================
 function updateSelectionTooltip(e) {
     if (lignesSelectionnees.size === 0) {
@@ -165,7 +168,9 @@ function render() {
 
         if (!tableHead.innerHTML) {
             const tr = document.createElement("tr");
-            headers.forEach(h => tr.appendChild(Object.assign(document.createElement("th"), { textContent: h })));
+            headers.forEach(h =>
+                tr.appendChild(Object.assign(document.createElement("th"), { textContent: h }))
+            );
             tr.appendChild(Object.assign(document.createElement("th"), { textContent: "Fait" }));
             tableHead.appendChild(tr);
         }
@@ -187,12 +192,6 @@ function render() {
     });
 
     function drawLot(name, rows, indent = 0) {
-
-        const toutFait = rows.every(r => r.etats[r.i]);
-
-        // 🔴 MASQUER LE LOT SI TOUT EST FAIT
-        if (toggleFait.checked && toutFait) return;
-
         let total = 0;
         let restant = 0;
 
@@ -205,36 +204,43 @@ function render() {
         totalGlobal += total;
         restantGlobal += restant;
 
+        const lotTermine = restant === 0;
         const open = !!lotsOuverts[name];
+
+        if (toggleFait.checked && lotTermine) return;
+
         const tr = document.createElement("tr");
         tr.className = "lot";
+        if (lotTermine && !toggleFait.checked) tr.classList.add("termine");
+
         tr.innerHTML = `
             <td colspan="7" style="padding-left:${indent}px">
                 <span class="toggle">${open ? "▾" : "▸"}</span>
                 ${name}
                 <span class="totaux">
-                    <span class="total-gris">${total.toFixed(2)} €</span> |
+                    <span class="total-gris">${total.toFixed(2)} €</span> | 
                     <span class="restant">${restant.toFixed(2)} €</span>
                 </span>
             </td>
         `;
+
         tr.onclick = () => {
             lotsOuverts[name] = !open;
             render();
         };
+
         tableBody.appendChild(tr);
 
         if (!open) return;
 
         rows.forEach(r => {
-
             if (toggleFait.checked && r.etats[r.i]) return;
 
             const trL = document.createElement("tr");
             trL.className = "ligne";
             if (r.etats[r.i]) trL.classList.add("fait");
 
-            trL.onclick = e => {
+            trL.addEventListener("click", e => {
                 if (!e.ctrlKey) return;
                 e.stopPropagation();
 
@@ -245,9 +251,9 @@ function render() {
                     lignesSelectionnees.add(r);
                     trL.classList.add("selection");
                 }
-            };
+            });
 
-            trL.onmousemove = updateSelectionTooltip;
+            trL.addEventListener("mousemove", updateSelectionTooltip);
 
             r.cells.forEach((c, idx) => {
                 const td = document.createElement("td");
@@ -292,55 +298,54 @@ function render() {
 
     Object.keys(lots).forEach(l => drawLot(l, lots[l]));
 
-if (Object.keys(pliages).length) {
+    if (Object.keys(pliages).length) {
+        const allRows = Object.values(pliages).flat();
 
-    let totalP = 0;
-    let restantP = 0;
+        let totalP = 0;
+        let restantP = 0;
 
-    Object.values(pliages).flat().forEach(r => {
-        const p = parsePrix(r.cells[5]);
-        totalP += p;
-        if (!r.etats[r.i]) restantP += p;
-    });
+        allRows.forEach(r => {
+            const p = parsePrix(r.cells[5]);
+            totalP += p;
+            if (!r.etats[r.i]) restantP += p;
+        });
 
-    // Si tout est fait ET masqué → on ne montre rien
-    if (!(toggleFait.checked && restantP === 0)) {
-
+        const pliageTermine = restantP === 0;
         const openP = !!lotsOuverts["Pliages"];
 
-        const trP = document.createElement("tr");
-        trP.className = "lot";
-        trP.innerHTML = `
-            <td colspan="7">
-                <span class="toggle">${openP ? "▾" : "▸"}</span>
-                Pliages
-                <span class="totaux">
-                    <span class="total-gris">${totalP.toFixed(2)} €</span> |
-                    <span class="restant">${restantP.toFixed(2)} €</span>
-                </span>
-            </td>
-        `;
+        if (!(toggleFait.checked && pliageTermine)) {
+            const trP = document.createElement("tr");
+            trP.className = "lot";
+            if (pliageTermine && !toggleFait.checked) trP.classList.add("termine");
 
-        trP.onclick = () => {
-            lotsOuverts["Pliages"] = !openP;
-            render();
-        };
+            trP.innerHTML = `
+                <td colspan="7">
+                    <span class="toggle">${openP ? "▾" : "▸"}</span>
+                    Pliages
+                    <span class="totaux">
+                        <span class="total-gris">${totalP.toFixed(2)} €</span> | 
+                        <span class="restant">${restantP.toFixed(2)} €</span>
+                    </span>
+                </td>
+            `;
 
-        tableBody.appendChild(trP);
+            trP.onclick = () => {
+                lotsOuverts["Pliages"] = !openP;
+                render();
+            };
 
-        if (openP) {
-            Object.keys(pliages).forEach(lotNom => {
-                drawLot(lotNom, pliages[lotNom], 30);
-            });
+            tableBody.appendChild(trP);
+
+            if (openP) {
+                Object.keys(pliages).forEach(l =>
+                    drawLot(l, pliages[l], 30)
+                );
+            }
         }
     }
-}
-
-
 
     totalGlobalSpan.textContent = `Total global : ${totalGlobal.toFixed(2)} €`;
     restantGlobalSpan.textContent = `Restant global : ${restantGlobal.toFixed(2)} €`;
 }
 
 searchInput.oninput = render;
-
