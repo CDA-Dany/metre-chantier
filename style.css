@@ -173,3 +173,9 @@ tr.lot td span.total-gris {
     color: #888888;  /* gris pour le total */
     font-weight: 600;
 }
+
+tr.lot.termine td {
+    text-decoration: line-through;
+    color: #9a9a9a;
+}
+
