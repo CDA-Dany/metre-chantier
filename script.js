@@ -294,21 +294,48 @@ function render() {
 
 if (Object.keys(pliages).length) {
 
-    const tousSousLotsFaits = Object.values(pliages)
-        .flat()
-        .every(r => r.etats[r.i]);
+    let totalP = 0;
+    let restantP = 0;
 
-    // 🔴 Masquer complètement le lot Pliages si tout est fait
-    if (!(toggleFait.checked && tousSousLotsFaits)) {
+    Object.values(pliages).flat().forEach(r => {
+        const p = parsePrix(r.cells[5]);
+        totalP += p;
+        if (!r.etats[r.i]) restantP += p;
+    });
 
-        const all = Object.values(pliages).flat();
-        drawLot("Pliages", all);
+    // Si tout est fait ET masqué → on ne montre rien
+    if (!(toggleFait.checked && restantP === 0)) {
 
-        if (lotsOuverts["Pliages"]) {
-            Object.keys(pliages).forEach(l => drawLot(l, pliages[l], 30));
+        const openP = !!lotsOuverts["Pliages"];
+
+        const trP = document.createElement("tr");
+        trP.className = "lot";
+        trP.innerHTML = `
+            <td colspan="7">
+                <span class="toggle">${openP ? "▾" : "▸"}</span>
+                Pliages
+                <span class="totaux">
+                    <span class="total-gris">${totalP.toFixed(2)} €</span> |
+                    <span class="restant">${restantP.toFixed(2)} €</span>
+                </span>
+            </td>
+        `;
+
+        trP.onclick = () => {
+            lotsOuverts["Pliages"] = !openP;
+            render();
+        };
+
+        tableBody.appendChild(trP);
+
+        if (openP) {
+            Object.keys(pliages).forEach(lotNom => {
+                drawLot(lotNom, pliages[lotNom], 30);
+            });
         }
     }
 }
+
 
 
     totalGlobalSpan.textContent = `Total global : ${totalGlobal.toFixed(2)} €`;
@@ -316,3 +343,4 @@ if (Object.keys(pliages).length) {
 }
 
 searchInput.oninput = render;
+
