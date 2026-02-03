@@ -159,12 +159,15 @@ tr.ligne.selection {
     align-items: center;
     gap: 6px;      /* texte proche de la case */
     font-size: 13px;
-    cursor: pointer;
+    cursor: pointer; 
+    user-select: none; 
 }
 
 .fait-option input {
     margin: 0;
+    cursor: pointer; /* s'assure que seul le clic sur la case agit */
 }
+
 
 /* ===== Totaux gris pour les lots ===== */
 tr.lot td span.total-gris {
