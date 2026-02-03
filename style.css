@@ -150,17 +150,21 @@ tr.ligne.selection {
 .search-container {
     display: flex;
     flex-direction: column;
-    gap: 6px;
+    align-items: flex-start;
+    gap: 4px;
 }
 
 .toggle-fait {
-    font-size: 14px;
+    display: flex;
+    align-items: center;
+    font-size: 13px;
+    line-height: 1;
     cursor: pointer;
     user-select: none;
 }
 
 .toggle-fait input {
-    margin-right: 6px;
-    vertical-align: middle;
+    margin: 0 6px 0 0;
 }
+
 
