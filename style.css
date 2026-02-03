@@ -17,36 +17,12 @@ body {
     margin-bottom: 15px;
 }
 
-/* Barre de recherche */
-.search-container {
-    display: flex;
-    flex-direction: column;  /* pour que la checkbox soit sous l'input */
-    align-items: flex-start; /* aligne tout à gauche */
-    gap: 4px;                /* petit espace entre input et case */
-    width: 100%;             /* s'assurer que ça prend toute la largeur */
-}
-
 .search-container input {
     width: 320px;
     padding: 10px 14px;
     border-radius: 8px;
     border: 1px solid #ccc;
 }
-
-.fait-option {
-    display: flex;
-    align-items: center;
-    gap: 6px;      /* texte proche de la case */
-    font-size: 13px;
-    cursor: pointer;
-    user-select: none;
-    width: auto;   /* ne prend pas toute la largeur, donc reste à gauche */
-}
-
-.fait-option input {
-    margin: 0;
-}
-
 
 /* ===== CHANTIER MENU ===== */
 .chantier-select {
