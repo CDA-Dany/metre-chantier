@@ -142,3 +142,24 @@ tr.ligne:hover {
 tr.ligne.selection {
     background: #cfe3ff !important;
 }
+
+.checkbox-container {
+    position: relative;   /* pour pouvoir gérer la position si besoin */
+    margin-top: 6px;      /* petit espace sous l'input */
+    width: 100%;          /* prend toute la largeur pour pouvoir placer la case à gauche */
+}
+
+.fait-option {
+    display: flex;
+    align-items: center;
+    gap: 6px;       /* texte proche de la case */
+    font-size: 13px;
+    cursor: pointer;
+    user-select: none;
+    position: relative; /* permet positionnement si besoin */
+    left: 0;           /* force la case à gauche */
+}
+
+.fait-option input {
+    margin: 0;
+}
