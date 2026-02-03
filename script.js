@@ -61,7 +61,10 @@ document.addEventListener("click", e => {
     }
 });
 
-toggleFait.onchange = render;
+toggleFait.addEventListener("change", () => {
+    render();
+});
+
 
 // ========================
 // Chargement index
@@ -322,3 +325,4 @@ function render() {
 }
 
 searchInput.oninput = render;
+
