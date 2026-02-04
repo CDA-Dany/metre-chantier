@@ -38,29 +38,11 @@
     <tbody></tbody>
 </table>
 
-<script type="module">
-import { initializeApp } from "https://www.gstatic.com/firebasejs/12.8.0/firebase-app.js";
-import { getFirestore, collection, doc, setDoc, onSnapshot, updateDoc } from "https://www.gstatic.com/firebasejs/12.8.0/firebase-firestore.js";
-
-const firebaseConfig = {
-  apiKey: "AIzaSyDWRNVnwrxuxx-ykwBm4D7BXivhyg1HAtE",
-  authDomain: "metre-bet-3dcb1.firebaseapp.com",
-  projectId: "metre-bet-3dcb1",
-  storageBucket: "metre-bet-3dcb1.firebasestorage.app",
-  messagingSenderId: "2779044366",
-  appId: "1:2779044366:web:141773b07da783aacd7a5f"
-};
-
-const app = initializeApp(firebaseConfig);
-const db = getFirestore(app);
-
-// référence à la collection 'taches'
-const tachesCol = collection(db, "taches");
-</script>
-
 <script src="script.js"></script>
+    
 </body>
 </html>
+
 
 
 
