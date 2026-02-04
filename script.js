@@ -1,3 +1,22 @@
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/12.8.0/firebase-app.js";
+import { getFirestore, collection, doc, setDoc, updateDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/12.8.0/firebase-firestore.js";
+
+// 🔹 Firebase config
+const firebaseConfig = {
+    apiKey: "AIzaSyDWRNVnwrxuxx-ykwBm4D7BXivhyg1HAtE",
+    authDomain: "metre-bet-3dcb1.firebaseapp.com",
+    projectId: "metre-bet-3dcb1",
+    storageBucket: "metre-bet-3dcb1.firebasestorage.app",
+    messagingSenderId: "2779044366",
+    appId: "1:2779044366:web:141773b07da783aacd7a5f"
+};
+
+// 🔹 Initialize Firebase
+const app = initializeApp(firebaseConfig);
+const db = getFirestore(app);
+const tachesCol = collection(db, "taches");
+
 // ========================
 // Sélections HTML
 // ========================
@@ -6,14 +25,10 @@ const tableHead = document.querySelector("thead");
 const tableBody = document.querySelector("tbody");
 const totalGlobalSpan = document.getElementById("totalGlobal");
 const restantGlobalSpan = document.getElementById("restantGlobal");
-
 const chantierBtn = document.getElementById("chantierBtn");
 const chantierMenu = document.getElementById("chantierMenu");
 const toggleFait = document.getElementById("toggleFait");
 
-// ========================
-// États globaux
-// ========================
 let chantiers = [];
 let csvCache = {};
 let chantiersActifs = new Set();
@@ -44,9 +59,7 @@ const tooltipSelection = document.createElement("div");
 
 // ========================
 function parsePrix(v) {
-    return parseFloat(
-        (v || "0").replace("€", "").replace(/\s/g, "").replace(",", ".")
-    ) || 0;
+    return parseFloat((v || "0").replace("€", "").replace(/\s/g, "").replace(",", ".")) || 0;
 }
 
 // ========================
@@ -54,8 +67,7 @@ function parsePrix(v) {
 // ========================
 chantierBtn.onclick = e => {
     e.stopPropagation();
-    chantierMenu.style.display =
-        chantierMenu.style.display === "block" ? "none" : "block";
+    chantierMenu.style.display = chantierMenu.style.display === "block" ? "none" : "block";
 };
 
 document.addEventListener("click", e => {
@@ -64,7 +76,7 @@ document.addEventListener("click", e => {
     }
 });
 
-toggleFait.onchange = render;
+toggleFait.addEventListener("change", render);
 
 // ========================
 // Chargement index
@@ -106,6 +118,37 @@ function loadCSV(c) {
             csvCache[c.fichier] = t;
             render();
         });
+}
+
+// ========================
+// Firestore : écoute en temps réel
+// ========================
+onSnapshot(tachesCol, snapshot => {
+    snapshot.docChanges().forEach(change => {
+        const data = change.doc.data();
+        const id = `${data.lot}_${data.nom}`;
+        const checkbox = document.querySelector(`input[data-id="${id}"]`);
+        if (checkbox) {
+            checkbox.checked = data.checked;
+        }
+    });
+});
+
+// ========================
+// Liaison checkbox ↔ Firestore
+// ========================
+function bindCheckboxToFirestore(cb, lot, nom) {
+    const id = `${lot}_${nom}`;
+    cb.dataset.id = id;
+
+    // Création doc si pas existant
+    setDoc(doc(db, "taches", id), { lot, nom, checked: cb.checked }, { merge: true });
+
+    cb.addEventListener("change", async e => {
+        e.stopPropagation();
+        const tacheDoc = doc(db, "taches", id);
+        await updateDoc(tacheDoc, { checked: cb.checked });
+    });
 }
 
 // ========================
@@ -168,9 +211,7 @@ function render() {
 
         if (!tableHead.innerHTML) {
             const tr = document.createElement("tr");
-            headers.forEach(h =>
-                tr.appendChild(Object.assign(document.createElement("th"), { textContent: h }))
-            );
+            headers.forEach(h => tr.appendChild(Object.assign(document.createElement("th"), { textContent: h })));
             tr.appendChild(Object.assign(document.createElement("th"), { textContent: "Fait" }));
             tableHead.appendChild(tr);
         }
@@ -204,15 +245,9 @@ function render() {
         totalGlobal += total;
         restantGlobal += restant;
 
-        const lotTermine = restant === 0;
         const open = !!lotsOuverts[name];
-
-        if (toggleFait.checked && lotTermine) return;
-
         const tr = document.createElement("tr");
         tr.className = "lot";
-        if (lotTermine && !toggleFait.checked) tr.classList.add("termine");
-
         tr.innerHTML = `
             <td colspan="7" style="padding-left:${indent}px">
                 <span class="toggle">${open ? "▾" : "▸"}</span>
@@ -224,45 +259,29 @@ function render() {
             </td>
         `;
 
+        // Masquer lot si toggleFait activé et toutes les lignes faites
+        const allFait = rows.every(r => r.etats[r.i]);
+        if (toggleFait.checked && allFait) return;
+
         tr.onclick = () => {
             lotsOuverts[name] = !open;
             render();
         };
-
         tableBody.appendChild(tr);
 
         if (!open) return;
 
         rows.forEach(r => {
-            if (toggleFait.checked && r.etats[r.i]) return;
-
             const trL = document.createElement("tr");
             trL.className = "ligne";
             if (r.etats[r.i]) trL.classList.add("fait");
 
-            trL.addEventListener("click", e => {
-                if (!e.ctrlKey) return;
-                e.stopPropagation();
-
-                if (lignesSelectionnees.has(r)) {
-                    lignesSelectionnees.delete(r);
-                    trL.classList.remove("selection");
-                } else {
-                    lignesSelectionnees.add(r);
-                    trL.classList.add("selection");
-                }
-            });
-
-            trL.addEventListener("mousemove", updateSelectionTooltip);
+            // 🔹 Masquer si toggleFait activé
+            if (toggleFait.checked && r.etats[r.i]) return;
 
             r.cells.forEach((c, idx) => {
                 const td = document.createElement("td");
-
-                if (idx === 4 || idx === 5) {
-                    td.textContent = parsePrix(c).toFixed(2) + " €";
-                } else {
-                    td.textContent = idx === 0 ? "" : c;
-                }
+                td.textContent = (idx === 4 || idx === 5) ? parsePrix(c).toFixed(2) + " €" : idx === 0 ? "" : c;
 
                 if (idx === 1) {
                     td.style.cursor = "help";
@@ -284,11 +303,10 @@ function render() {
             const cb = document.createElement("input");
             cb.type = "checkbox";
             cb.checked = !!r.etats[r.i];
-            cb.onchange = () => {
-                r.etats[r.i] = cb.checked;
-                localStorage.setItem("etat-" + r.c.fichier, JSON.stringify(r.etats));
-                render();
-            };
+
+            // 🔹 Lier à Firestore
+            bindCheckboxToFirestore(cb, r.cells[0], r.cells[1]);
+
             tdC.appendChild(cb);
             trL.appendChild(tdC);
 
@@ -299,49 +317,39 @@ function render() {
     Object.keys(lots).forEach(l => drawLot(l, lots[l]));
 
     if (Object.keys(pliages).length) {
-        const allRows = Object.values(pliages).flat();
-
-        let totalP = 0;
-        let restantP = 0;
-
-        allRows.forEach(r => {
+        let totalP = 0, restantP = 0;
+        Object.values(pliages).flat().forEach(r => {
             const p = parsePrix(r.cells[5]);
             totalP += p;
             if (!r.etats[r.i]) restantP += p;
         });
 
-        const pliageTermine = restantP === 0;
         const openP = !!lotsOuverts["Pliages"];
+        const trP = document.createElement("tr");
+        trP.className = "lot";
 
-        if (!(toggleFait.checked && pliageTermine)) {
-            const trP = document.createElement("tr");
-            trP.className = "lot";
-            if (pliageTermine && !toggleFait.checked) trP.classList.add("termine");
+        // Masquer lot Pliages si toutes les sous-lignes faites et toggleFait
+        const allPliagesFait = Object.values(pliages).flat().every(r => r.etats[r.i]);
+        if (toggleFait.checked && allPliagesFait) return;
 
-            trP.innerHTML = `
-                <td colspan="7">
-                    <span class="toggle">${openP ? "▾" : "▸"}</span>
-                    Pliages
-                    <span class="totaux">
-                        <span class="total-gris">${totalP.toFixed(2)} €</span> | 
-                        <span class="restant">${restantP.toFixed(2)} €</span>
-                    </span>
-                </td>
-            `;
+        trP.innerHTML = `
+            <td colspan="7">
+                <span class="toggle">${openP ? "▾" : "▸"}</span>
+                Pliages
+                <span class="totaux">
+                    <span class="total-gris">${totalP.toFixed(2)} €</span> | 
+                    <span class="restant">${restantP.toFixed(2)} €</span>
+                </span>
+            </td>
+        `;
 
-            trP.onclick = () => {
-                lotsOuverts["Pliages"] = !openP;
-                render();
-            };
+        trP.onclick = () => {
+            lotsOuverts["Pliages"] = !openP;
+            render();
+        };
+        tableBody.appendChild(trP);
 
-            tableBody.appendChild(trP);
-
-            if (openP) {
-                Object.keys(pliages).forEach(l =>
-                    drawLot(l, pliages[l], 30)
-                );
-            }
-        }
+        if (openP) Object.keys(pliages).forEach(l => drawLot(l, pliages[l], 30));
     }
 
     totalGlobalSpan.textContent = `Total global : ${totalGlobal.toFixed(2)} €`;
@@ -349,3 +357,4 @@ function render() {
 }
 
 searchInput.oninput = render;
+</script>
