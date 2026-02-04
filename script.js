@@ -1,22 +1,3 @@
-<script type="module">
-import { initializeApp } from "https://www.gstatic.com/firebasejs/12.8.0/firebase-app.js";
-import { getFirestore, collection, doc, setDoc, updateDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/12.8.0/firebase-firestore.js";
-
-// 🔹 Firebase config
-const firebaseConfig = {
-    apiKey: "AIzaSyDWRNVnwrxuxx-ykwBm4D7BXivhyg1HAtE",
-    authDomain: "metre-bet-3dcb1.firebaseapp.com",
-    projectId: "metre-bet-3dcb1",
-    storageBucket: "metre-bet-3dcb1.firebasestorage.app",
-    messagingSenderId: "2779044366",
-    appId: "1:2779044366:web:141773b07da783aacd7a5f"
-};
-
-// 🔹 Initialize Firebase
-const app = initializeApp(firebaseConfig);
-const db = getFirestore(app);
-const tachesCol = collection(db, "taches");
-
 // ========================
 // Sélections HTML
 // ========================
@@ -25,15 +6,20 @@ const tableHead = document.querySelector("thead");
 const tableBody = document.querySelector("tbody");
 const totalGlobalSpan = document.getElementById("totalGlobal");
 const restantGlobalSpan = document.getElementById("restantGlobal");
+const toggleFait = document.getElementById("toggleFait");
+
 const chantierBtn = document.getElementById("chantierBtn");
 const chantierMenu = document.getElementById("chantierMenu");
-const toggleFait = document.getElementById("toggleFait");
 
 let chantiers = [];
 let csvCache = {};
 let chantiersActifs = new Set();
 let lotsOuverts = {};
 let lignesSelectionnees = new Set();
+
+// Firestore
+const db = window.db; // Firebase Firestore initialisé dans ton HTML
+const { collection, doc, setDoc, onSnapshot } = window.firebaseFirestore || {};
 
 // ========================
 // Tooltips
@@ -59,7 +45,7 @@ const tooltipSelection = document.createElement("div");
 
 // ========================
 function parsePrix(v) {
-    return parseFloat((v || "0").replace("€", "").replace(/\s/g, "").replace(",", ".")) || 0;
+    return parseFloat((v||"0").replace("€","").replace(/\s/g,"").replace(",", ".")) || 0;
 }
 
 // ========================
@@ -67,7 +53,8 @@ function parsePrix(v) {
 // ========================
 chantierBtn.onclick = e => {
     e.stopPropagation();
-    chantierMenu.style.display = chantierMenu.style.display === "block" ? "none" : "block";
+    chantierMenu.style.display =
+        chantierMenu.style.display === "block" ? "none" : "block";
 };
 
 document.addEventListener("click", e => {
@@ -121,33 +108,25 @@ function loadCSV(c) {
 }
 
 // ========================
+// Firestore : set checked
+// ========================
+async function setCheckedFirestore(fichier, i, value) {
+    if (!db) return;
+    const docRef = doc(db, "taches", `${fichier}-${i}`);
+    await setDoc(docRef, { checked: value }, { merge: true });
+}
+
 // Firestore : écoute en temps réel
-// ========================
-onSnapshot(tachesCol, snapshot => {
-    snapshot.docChanges().forEach(change => {
-        const data = change.doc.data();
-        const id = `${data.lot}_${data.nom}`;
-        const checkbox = document.querySelector(`input[data-id="${id}"]`);
-        if (checkbox) {
-            checkbox.checked = data.checked;
-        }
-    });
-});
-
-// ========================
-// Liaison checkbox ↔ Firestore
-// ========================
-function bindCheckboxToFirestore(cb, lot, nom) {
-    const id = `${lot}_${nom}`;
-    cb.dataset.id = id;
-
-    // Création doc si pas existant
-    setDoc(doc(db, "taches", id), { lot, nom, checked: cb.checked }, { merge: true });
-
-    cb.addEventListener("change", async e => {
-        e.stopPropagation();
-        const tacheDoc = doc(db, "taches", id);
-        await updateDoc(tacheDoc, { checked: cb.checked });
+function listenFirestore(fichier, i, trL, cb) {
+    if (!db) return;
+    const docRef = doc(db, "taches", `${fichier}-${i}`);
+    onSnapshot(docRef, snap => {
+        if (!snap.exists()) return;
+        const val = snap.data().checked;
+        cb.checked = val;
+        if (val) trL.classList.add("fait");
+        else trL.classList.remove("fait");
+        render();
     });
 }
 
@@ -242,12 +221,19 @@ function render() {
             if (!r.etats[r.i]) restant += p;
         });
 
+        // Vérifie si toutes les lignes sont faites
+        const toutesFaites = rows.every(r => r.etats[r.i]);
+
         totalGlobal += total;
         restantGlobal += restant;
+
+        // Masquer lot si toutes faites et toggleFait activé
+        if (toggleFait.checked && toutesFaites) return;
 
         const open = !!lotsOuverts[name];
         const tr = document.createElement("tr");
         tr.className = "lot";
+        if (toutesFaites) tr.classList.add("fait"); // barré et grisé si tout fait
         tr.innerHTML = `
             <td colspan="7" style="padding-left:${indent}px">
                 <span class="toggle">${open ? "▾" : "▸"}</span>
@@ -258,11 +244,6 @@ function render() {
                 </span>
             </td>
         `;
-
-        // Masquer lot si toggleFait activé et toutes les lignes faites
-        const allFait = rows.every(r => r.etats[r.i]);
-        if (toggleFait.checked && allFait) return;
-
         tr.onclick = () => {
             lotsOuverts[name] = !open;
             render();
@@ -276,12 +257,25 @@ function render() {
             trL.className = "ligne";
             if (r.etats[r.i]) trL.classList.add("fait");
 
-            // 🔹 Masquer si toggleFait activé
-            if (toggleFait.checked && r.etats[r.i]) return;
+            // 🔹 Firestore checkbox
+            const tdC = document.createElement("td");
+            const cb = document.createElement("input");
+            cb.type = "checkbox";
+            cb.checked = !!r.etats[r.i];
+            cb.onclick = e => {
+                e.stopPropagation(); // empêche de cliquer sur toute la ligne
+                r.etats[r.i] = cb.checked;
+                localStorage.setItem("etat-" + r.c.fichier, JSON.stringify(r.etats));
+                setCheckedFirestore(r.c.fichier, r.i, cb.checked);
+                render();
+            };
+            listenFirestore(r.c.fichier, r.i, trL, cb);
+            tdC.appendChild(cb);
 
             r.cells.forEach((c, idx) => {
                 const td = document.createElement("td");
-                td.textContent = (idx === 4 || idx === 5) ? parsePrix(c).toFixed(2) + " €" : idx === 0 ? "" : c;
+                if (idx === 4 || idx === 5) td.textContent = parsePrix(c).toFixed(2) + " €";
+                else td.textContent = idx === 0 ? "" : c;
 
                 if (idx === 1) {
                     td.style.cursor = "help";
@@ -299,16 +293,21 @@ function render() {
                 trL.appendChild(td);
             });
 
-            const tdC = document.createElement("td");
-            const cb = document.createElement("input");
-            cb.type = "checkbox";
-            cb.checked = !!r.etats[r.i];
-
-            // 🔹 Lier à Firestore
-            bindCheckboxToFirestore(cb, r.cells[0], r.cells[1]);
-
-            tdC.appendChild(cb);
             trL.appendChild(tdC);
+
+            // sélection Ctrl + clic
+            trL.addEventListener("click", e => {
+                if (!e.ctrlKey) return;
+                e.stopPropagation();
+                if (lignesSelectionnees.has(r)) {
+                    lignesSelectionnees.delete(r);
+                    trL.classList.remove("selection");
+                } else {
+                    lignesSelectionnees.add(r);
+                    trL.classList.add("selection");
+                }
+            });
+            trL.addEventListener("mousemove", updateSelectionTooltip);
 
             tableBody.appendChild(trL);
         });
@@ -316,6 +315,7 @@ function render() {
 
     Object.keys(lots).forEach(l => drawLot(l, lots[l]));
 
+    // Lot mère Pliages
     if (Object.keys(pliages).length) {
         let totalP = 0, restantP = 0;
         Object.values(pliages).flat().forEach(r => {
@@ -324,32 +324,27 @@ function render() {
             if (!r.etats[r.i]) restantP += p;
         });
 
-        const openP = !!lotsOuverts["Pliages"];
-        const trP = document.createElement("tr");
-        trP.className = "lot";
+        const toutesFaites = Object.values(pliages).flat().every(r => r.etats[r.i]);
+        if (!(toggleFait.checked && toutesFaites)) {
+            const openP = !!lotsOuverts["Pliages"];
+            const trP = document.createElement("tr");
+            trP.className = "lot";
+            if (toutesFaites) trP.classList.add("fait");
+            trP.innerHTML = `
+                <td colspan="7">
+                    <span class="toggle">${openP ? "▾" : "▸"}</span>
+                    Pliages
+                    <span class="totaux">
+                        <span class="total-gris">${totalP.toFixed(2)} €</span> | 
+                        <span class="restant">${restantP.toFixed(2)} €</span>
+                    </span>
+                </td>
+            `;
+            trP.onclick = () => { lotsOuverts["Pliages"] = !openP; render(); };
+            tableBody.appendChild(trP);
 
-        // Masquer lot Pliages si toutes les sous-lignes faites et toggleFait
-        const allPliagesFait = Object.values(pliages).flat().every(r => r.etats[r.i]);
-        if (toggleFait.checked && allPliagesFait) return;
-
-        trP.innerHTML = `
-            <td colspan="7">
-                <span class="toggle">${openP ? "▾" : "▸"}</span>
-                Pliages
-                <span class="totaux">
-                    <span class="total-gris">${totalP.toFixed(2)} €</span> | 
-                    <span class="restant">${restantP.toFixed(2)} €</span>
-                </span>
-            </td>
-        `;
-
-        trP.onclick = () => {
-            lotsOuverts["Pliages"] = !openP;
-            render();
-        };
-        tableBody.appendChild(trP);
-
-        if (openP) Object.keys(pliages).forEach(l => drawLot(l, pliages[l], 30));
+            if (openP) Object.keys(pliages).forEach(l => drawLot(l, pliages[l], 30));
+        }
     }
 
     totalGlobalSpan.textContent = `Total global : ${totalGlobal.toFixed(2)} €`;
@@ -357,4 +352,3 @@ function render() {
 }
 
 searchInput.oninput = render;
-</script>
