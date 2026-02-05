@@ -91,10 +91,15 @@ function renderChantiers() {
         cb.type = "checkbox";
 
         cb.onchange = () => {
-            cb.checked ? chantiersActifs.add(c) : chantiersActifs.delete(c);
-            loadCSV(c);
-            render();
-        };
+    if (cb.checked) {
+        chantiersActifs.add(c);
+        loadCSV(c); // render sera appelé après le chargement
+    } else {
+        chantiersActifs.delete(c);
+        render();
+    }
+};
+
 
         label.appendChild(cb);
         label.append(c.nom);
@@ -103,16 +108,20 @@ function renderChantiers() {
 }
 
 function loadCSV(c) {
-    if (csvCache[c.fichier]) return;
+    if (csvCache[c.fichier]) {
+        render();
+        return;
+    }
 
     fetch("data/" + c.fichier)
         .then(r => r.text())
         .then(t => {
             csvCache[c.fichier] = t;
             subscribeFirestore(c);
-            render();
+            render(); // ✅ render AU BON MOMENT
         });
 }
+
 
 // ========================
 // FIRESTORE — TEMPS RÉEL
@@ -267,3 +276,4 @@ function render() {
 }
 
 searchInput.oninput = render;
+
