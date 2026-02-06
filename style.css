@@ -1,3 +1,6 @@
+/* ===============================
+   BASE
+================================ */
 * {
     box-sizing: border-box;
     font-family: system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
@@ -7,9 +10,12 @@ body {
     margin: 0;
     background: #f5f6f8;
     padding: 20px;
+    color: #1f2937;
 }
 
-/* ===== TOP BAR ===== */
+/* ===============================
+   TOP BAR
+================================ */
 .topbar {
     display: flex;
     justify-content: space-between;
@@ -18,13 +24,18 @@ body {
     margin-bottom: 8px;
 }
 
+/* --- Recherche --- */
 .search-container input {
     width: 320px;
     padding: 10px 14px;
     border-radius: 8px;
-    border: 1px solid #ccc;
+    border: 1px solid #d1d5db;
+    background: white;
 }
 
+/* ===============================
+   OPTION MASQUER FAIT
+================================ */
 .checkbox-container {
     margin-bottom: 10px;
 }
@@ -43,17 +54,20 @@ body {
     cursor: pointer;
 }
 
-/* ===== CHANTIER MENU ===== */
+/* ===============================
+   MENU CHANTIERS
+================================ */
 .chantier-select {
     position: relative;
 }
 
 #chantierBtn {
-    padding: 8px 14px;
+    padding: 8px 16px;
     border-radius: 20px;
     border: none;
     background: #2e7d5a;
     color: white;
+    font-weight: 500;
     cursor: pointer;
 }
 
@@ -61,70 +75,88 @@ body {
     display: none;
     position: absolute;
     right: 0;
-    top: 40px;
+    top: 42px;
     background: white;
-    border-radius: 8px;
-    box-shadow: 0 6px 20px rgba(0,0,0,0.15);
+    border-radius: 10px;
+    box-shadow: 0 8px 25px rgba(0,0,0,0.15);
     padding: 10px;
-    min-width: 220px;
+    min-width: 230px;
     z-index: 10;
 }
 
 .chantier-menu label {
     display: flex;
     gap: 8px;
-    padding: 6px;
+    padding: 6px 8px;
     cursor: pointer;
+    border-radius: 6px;
 }
 
 .chantier-menu label:hover {
-    background: #f0f0f0;
+    background: #f3f4f6;
 }
 
-/* ===== RESUME ===== */
+/* ===============================
+   RÉSUMÉ
+================================ */
 .resume {
     display: flex;
     justify-content: flex-end;
-    gap: 25px;
+    gap: 30px;
     margin: 10px 0 15px;
     font-weight: 600;
 }
 
-/* ===== TABLE ===== */
+/* ===============================
+   TABLE
+================================ */
 table {
     width: 100%;
     border-collapse: collapse;
     background: white;
-    border-radius: 10px;
+    border-radius: 12px;
     overflow: hidden;
 }
 
+/* --- Header --- */
 thead {
     background: #343a40;
     color: white;
 }
 
-th, td {
-    padding: 10px;
-    border-bottom: 1px solid #e2e2e2;
+th {
+    padding: 12px 10px;
+    text-align: left;
+    font-size: 14px;
+}
+
+th:last-child {
+    text-align: center;
+}
+
+/* --- Cellules --- */
+td {
+    padding: 12px 10px;
+    border-bottom: 1px solid #e5e7eb;
     text-align: left;
 }
 
-th:last-child,
 td:last-child {
     text-align: center;
 }
 
-/* ===== LOTS ===== */
+/* ===============================
+   LOTS
+================================ */
 tr.lot {
     background: #f1f3f5;
     font-weight: 600;
     cursor: pointer;
+    border-top: 2px solid #d1d5db;
 }
 
 tr.lot td {
-    text-align: left;
-    position: relative;
+    text-align: left; /* IMPORTANT : pas centré */
 }
 
 tr.lot td span.toggle {
@@ -137,48 +169,62 @@ tr.lot td span.toggle {
 
 tr.lot td span.totaux {
     float: right;
+    font-weight: 500;
 }
 
+/* Total / restant */
+tr.lot td span.total-gris {
+    color: #9ca3af;
+    font-weight: 600;
+}
+
+tr.lot td span.restant {
+    color: #111827;
+}
+
+/* Lot terminé */
 tr.lot.termine td {
     text-decoration: line-through;
-    color: #9a9a9a;
+    color: #9ca3af;
 }
 
-/* ===== SOUS-LOTS ===== */
+/* ===============================
+   LIGNES
+================================ */
+tr.ligne {
+    background: white;
+}
+
+tr.ligne:hover td {
+    background-color: #f3f4f6;
+}
+
+/* Ligne sélectionnée */
+tr.ligne.selection td {
+    background: #dbeafe !important;
+}
+
+/* Ligne faite */
+tr.ligne.fait td {
+    text-decoration: line-through;
+    opacity: 0.5;
+    color: #6b7280;
+}
+
+/* ===============================
+   SOUS-LOTS (PLIAGES)
+================================ */
 tr.sous-lot {
     background: #f7f7f7;
+    font-weight: 500;
     cursor: pointer;
 }
 
-/* ===== LIGNES ===== */
-tr.ligne {
-    opacity: 0;
-    transform: translateY(-5px);
-    transition: opacity 0.25s ease, transform 0.25s ease;
-}
-
-tr.ligne.show {
-    opacity: 1;
-    transform: translateY(0);
-}
-
-tr.ligne.fait {
-    text-decoration: line-through;
-    opacity: 0.6;
-}
-
-tr.ligne:hover {
-    background-color: #ffffcc;
-    cursor: default;
-}
-
-tr.ligne.selection {
-    background: #cfe3ff !important;
-    outline: none;
-}
-
-/* ===== Totaux gris ===== */
-tr.lot td span.total-gris {
-    color: #888888;
-    font-weight: 600;
+/* ===============================
+   CHECKBOX
+================================ */
+input[type="checkbox"] {
+    width: 16px;
+    height: 16px;
+    cursor: pointer;
 }
