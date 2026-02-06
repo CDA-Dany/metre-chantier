@@ -202,7 +202,6 @@ tr.ligne:hover td {
 /* Ligne sélectionnée */
 tr.ligne.selection td {
     background: #dbeafe !important;
-    box-shadow: inset 3px 0 0 #2563eb;
 }
 
 /* Ligne faite */
