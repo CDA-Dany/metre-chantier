@@ -30,6 +30,7 @@ const tableHead = document.querySelector("thead");
 const tableBody = document.querySelector("tbody");
 const totalGlobalSpan = document.getElementById("totalGlobal");
 const restantGlobalSpan = document.getElementById("restantGlobal");
+
 const chantierBtn = document.getElementById("chantierBtn");
 const chantierMenu = document.getElementById("chantierMenu");
 const toggleFait = document.getElementById("toggleFait");
@@ -83,6 +84,7 @@ chantierBtn.onclick = e => {
     chantierMenu.style.display =
         chantierMenu.style.display === "block" ? "none" : "block";
 };
+
 document.addEventListener("click", e => {
     if (!chantierMenu.contains(e.target) && e.target !== chantierBtn) {
         chantierMenu.style.display = "none";
@@ -138,6 +140,7 @@ function loadCSV(c) {
         render();
         return;
     }
+
     fetch("data/" + c.fichier)
         .then(r => r.text())
         .then(t => {
@@ -162,9 +165,11 @@ function subscribeFirestore(c) {
         firestoreUnsubs[docId] = onSnapshot(ref, snap => {
             if (!snap.exists()) return;
             const data = snap.data();
+
             const etats = JSON.parse(localStorage.getItem("etat-" + c.fichier)) || {};
             etats[i] = data.checked;
             localStorage.setItem("etat-" + c.fichier, JSON.stringify(etats));
+
             render();
         });
     });
@@ -188,8 +193,10 @@ function updateSelectionTooltip(e) {
         const qte = parseFloat(r.cells[2].replace(",", ".")) || 0;
         const u = r.cells[3]?.trim();
         const prix = parsePrix(r.cells[5]);
+
         sommeQte += qte;
         sommePrix += prix;
+
         if (unite === null) unite = u;
         else if (unite !== u) uniteUnique = false;
     });
@@ -199,6 +206,7 @@ function updateSelectionTooltip(e) {
         Quantité : ${uniteUnique ? `${sommeQte} ${unite}` : "?"}<br>
         Total HT : ${sommePrix.toFixed(2)} €
     `;
+
     tooltipSelection.style.left = e.clientX + 15 + "px";
     tooltipSelection.style.top = e.clientY + 15 + "px";
     tooltipSelection.style.display = "block";
@@ -214,6 +222,7 @@ function render() {
 
     let totalGlobal = 0;
     let restantGlobal = 0;
+
     const lots = {};
     const pliages = {};
 
@@ -239,6 +248,7 @@ function render() {
             const cells = l.split(",");
             const lot = cells[0]?.trim();
             const nom = cells[1]?.toLowerCase() || "";
+
             if (!lot || lot === "-" || lot.includes("___")) return;
             if (searchInput.value && !nom.includes(searchInput.value.toLowerCase())) return;
 
@@ -255,6 +265,7 @@ function render() {
             total += p;
             if (!r.etats[r.i]) restant += p;
         });
+
         totalGlobal += total;
         restantGlobal += restant;
 
@@ -284,6 +295,7 @@ function render() {
 
         rows.forEach(r => {
             if (toggleFait.checked && r.etats[r.i]) return;
+
             const trL = document.createElement("tr");
             trL.className = "ligne";
             if (r.etats[r.i]) trL.classList.add("fait");
@@ -346,9 +358,6 @@ function render() {
             tdC.appendChild(cb);
             trL.appendChild(tdC);
             tableBody.appendChild(trL);
-
-            // ===== Animation
-            requestAnimationFrame(() => trL.classList.add("show"));
         });
     }
 
@@ -392,3 +401,4 @@ function render() {
 // RECHERCHE
 // ========================
 searchInput.oninput = render;
+
